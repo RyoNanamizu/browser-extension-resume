@@ -1,0 +1,33 @@
+{
+  "name": "linkedin-current-job-txt-exporter",
+  "version": "1.0.5",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.15.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test --test-isolation=none tests/*.test.ts",
+    "build": "node scripts/build.mjs",
+    "package:source": "node scripts/package-source.mjs",
+    "verify:build": "node scripts/verify-build.mjs",
+    "check": "pnpm typecheck && pnpm test && pnpm build && pnpm verify:build",
+    "test:browser": "node scripts/browser-smoke.mjs",
+    "test:firefox": "node scripts/firefox-smoke.mjs",
+    "lint:firefox": "web-ext lint --source-dir dist/firefox --warnings-as-errors"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.1.24",
+    "@types/jsdom": "^21.1.7",
+    "@types/node": "^22.15.30",
+    "esbuild": "^0.25.5",
+    "fflate": "^0.8.2",
+    "jsdom": "^26.1.0",
+    "playwright": "^1.52.0",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3",
+    "web-ext": "10.8.0"
+  }
+}

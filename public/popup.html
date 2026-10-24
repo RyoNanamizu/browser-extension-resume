@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Current Job · TXT Exporter</title>
+  <link rel="stylesheet" href="popup.css">
+  <script src="popup.js" defer></script>
+</head>
+<body>
+  <header class="masthead">
+    <span class="mark" aria-hidden="true">JD</span>
+    <div><p class="eyebrow">CURRENT JOB / TXT</p><h1>保存这份职位</h1></div>
+    <span class="local-badge">本地处理</span>
+  </header>
+  <main>
+    <p class="intro">打开 LinkedIn 职位详情，手动展开描述，然后提取并检查内容。</p>
+    <div class="toolbar">
+      <button id="extract" type="button" class="primary">提取当前职位</button>
+      <button id="reextract" type="button" hidden>重新提取</button>
+    </div>
+    <div id="overwrite" class="notice" hidden>
+      <p>重新提取会覆盖尚未下载的编辑。</p>
+      <button id="confirm-reextract" type="button">覆盖并重新提取</button>
+      <button id="cancel-reextract" type="button">保留编辑</button>
+    </div>
+    <p id="status" role="status" aria-live="polite">等待提取。打开弹窗不会读取网页。</p>
+    <form id="editor" hidden>
+      <fieldset id="fields">
+        <div class="row">
+          <label>公司名称 <span>*</span><input id="company" required autocomplete="off"></label>
+          <label>职位名称 <span>*</span><input id="title" required autocomplete="off"></label>
+        </div>
+        <label>申请方式
+          <select id="application-type">
+            <option value="unknown">尚不明确</option>
+            <option value="easy_apply">LinkedIn 轻松申请</option>
+            <option value="external">外部申请</option>
+          </select>
+        </label>
+        <label>申请链接 <input id="application-url" type="text" inputmode="url" autocomplete="off" placeholder="https://…" aria-describedby="url-status"></label>
+        <p id="url-status" class="hint"></p>
+        <label>ATS 名称 <input id="ats" autocomplete="off" placeholder="未识别，可手动填写"></label>
+        <label>职位描述 <span>*</span><textarea id="description" rows="10" required spellcheck="false" placeholder="原始职位描述；请检查段落和列表是否完整"></textarea></label>
+      </fieldset>
+      <ul id="warnings" class="warnings" aria-label="检查提示"></ul>
+      <details class="source"><summary>来源与提取时间</summary><p id="source"></p><p id="extracted-at"></p></details>
+      <div class="download-panel">
+        <div><p class="eyebrow">UTF-8 · TXT</p><p id="filename" class="filename"></p></div>
+        <button id="download" type="submit" class="primary">下载 TXT</button>
+      </div>
+    </form>
+    <footer>仅处理当前职位 · 不自动点击或获取额外数据<br>关闭弹窗将清除预览和编辑，请先下载。</footer>
+  </main>
+</body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "Current Job TXT Exporter",
+  "version": "1.0.5",
+  "description": "Review and save the currently loaded LinkedIn job as a local UTF-8 TXT file.",
+  "permissions": ["activeTab", "scripting", "downloads"],
+  "action": { "default_title": "Current Job TXT Exporter", "default_popup": "popup.html", "default_icon": { "16": "icons/icon-16.png", "32": "icons/icon-32.png" } },
+  "icons": { "16": "icons/icon-16.png", "32": "icons/icon-32.png", "48": "icons/icon-48.png", "128": "icons/icon-128.png" },
+  "background": { "scripts": ["background.js"] },
+  "browser_specific_settings": { "gecko": { "id": "current-job-txt@local.example", "strict_min_version": "142.0", "data_collection_permissions": { "required": ["none"] } } },
+  "content_security_policy": { "extension_pages": "script-src 'self'; object-src 'none'; connect-src 'none'; base-uri 'none'" }
+}

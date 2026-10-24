@@ -1,0 +1,16 @@
+node_modules/
+test-results/
+web-ext-artifacts/
+*.log
+/tmp/
+/captures/
+/verification/
+/dist/
+/releases/
+/tests/fixtures/
+*.har
+*.mhtml
+/*.html
+/*.zip
+/*.xpi
+new-jd-*.txt
