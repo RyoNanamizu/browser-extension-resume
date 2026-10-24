@@ -1,42 +1,49 @@
-# LinkedIn 当前岗位 TXT 导出插件：Codex 实施方案
+# LinkedIn Current Job TXT Exporter — Codex Implementation Specification
 
-版本：v1.0（首版实施基线）
+Version: 1.1
 
-## 1. 交给 Codex 的任务
+## 1. Task for Codex
 
-请按本文实现一个兼容 Firefox 和 Chromium 的浏览器扩展。请完成代码、构建配置、针对关键逻辑的测试、浏览器安装说明和可加载的构建产物，不要只输出设计建议。先检查现有项目约定；若为空目录，则创建独立项目。遇到不影响范围的实现细节，自行选择简单可靠的方案。真实 LinkedIn 页面无法验证时，明确列出待验证事项，不要声称已通过实测。
+Implement a desktop browser extension compatible with Firefox and Chromium. Deliver source code, build configuration, meaningful tests, installation instructions, and loadable build artifacts. Inspect existing project conventions first; initialize a standalone project if the directory is empty. Make routine implementation decisions independently. Clearly distinguish verified behavior from behavior requiring a real, signed-in LinkedIn page.
 
-核心目标：用户在已经加载的 LinkedIn 岗位详情页主动激活扩展，读取当前岗位信息，在可编辑预览中确认后，下载一个 UTF-8 TXT 文件。默认文件名为 `new-jd-<公司名称>.txt`。
+The user explicitly activates the extension on an already loaded LinkedIn job details page, reviews and optionally edits the extracted information, and downloads a UTF-8 TXT file named `new-jd-<company-name>.txt`.
 
-## 2. 已确定的范围
+### Language requirements
 
-- 同时支持 Firefox 与 Chromium 桌面浏览器。
-- 仅处理 `https://www.linkedin.com/jobs/view/<数字 job_id>/` 页面，允许附带查询参数或省略结尾斜杠。
-- 用户点击扩展后，再点击“提取当前岗位”，才开始读取页面。
-- 只读取该次用户操作对应的当前标签页、当前已经加载的岗位内容。
-- 不处理 Saved Jobs，也不处理 `jobs-tracker` 页面。
-- 不遍历岗位、不自动打开标签页、不自动申请、不自动点击 Apply 或“展开”。
-- 不调用 LinkedIn 私有接口，不额外请求岗位或 ATS 数据，不读取 Cookie，不监听网络流量。
-- 数据在浏览器本地处理，无后端、无 AI 接口、无分析埋点。
-- 首版仅导出单个 TXT，不实现 ZIP、批量导出和历史记录。
+- Write this specification, README, implementation report, and other generated project documentation in English.
+- All extension-generated labels, status values, placeholders, and warnings saved in TXT files must be in English.
+- Preserve company names, job titles, and job descriptions in their original source language. Do not translate or rewrite extracted content. User edits must also be preserved.
+- Use English names for project files and artifacts. Keep the required `new-jd-` prefix and `.txt` extension; the company-name component preserves the source company name after filename sanitization. It may contain Unicode. Do not invent an English company name or transliteration.
+- Extension UI language is a separate concern: the initial UI may remain Chinese. Map UI messages to English export messages; never copy a Chinese UI warning directly into an exported file.
 
-说明：以上范围描述技术行为，不代表 LinkedIn 许可。不能在 README 或界面中宣称“本地处理所以与 LinkedIn 无关”或保证账号不受限制。平台条款仍需由使用者自行评估；无需在每次导出中插入确认弹窗。
+## 2. Scope
 
-## 3. 用户流程
+- Support Firefox and Chromium desktop browsers.
+- Support only `https://www.linkedin.com/jobs/view/<numeric-job-id>/`, allowing query parameters and an omitted trailing slash.
+- Read the page only after the user opens the extension and clicks the extract action.
+- Process only the currently loaded job in the current tab.
+- Do not process Saved Jobs or `jobs-tracker` pages.
+- Do not enumerate jobs, open tabs automatically, apply for jobs, or click Apply or expansion controls.
+- Do not call private LinkedIn APIs, request additional job or ATS data, read cookies, or monitor network traffic.
+- Process data locally without a backend, AI API, analytics, or telemetry.
+- Export one TXT file per user action. No ZIP export, batch export, or history in the initial version.
 
-1. 用户自行打开并加载 LinkedIn 岗位详情，必要时手动展开岗位介绍。
-2. 点击扩展图标，打开弹窗。
-3. 点击“提取当前岗位”。
-4. 扩展校验页面，读取 DOM 并生成结构化结果。
-5. 展示公司名称、岗位名称、申请类型、申请地址、ATS 和岗位介绍；用户可编辑这些字段。
-6. 存在缺失或不确定信息时，展示具体提示，不用推测值填充。
-7. 用户点击“下载 TXT”，扩展按当前编辑结果生成文件并调用下载 API。
+These constraints describe technical behavior, not LinkedIn authorization. Do not claim that local processing exempts the extension from platform terms or guarantees account safety. Do not add a confirmation dialog to every export solely for this issue.
 
-弹窗须提供：提取、重新提取、下载，以及状态/错误提示。长岗位介绍放在可滚动的多行文本框中。下载必须在用户点击后发生，不能提取结束后自动下载。
+## 3. User workflow
 
-## 4. 数据模型与文本输出
+1. The user opens and loads a LinkedIn job details page and manually expands the description if needed.
+2. The user opens the extension popup and clicks the extract action.
+3. The extension validates the page and extracts structured information from its current DOM.
+4. The popup displays editable company name, job title, application type, application URL, ATS name, and description.
+5. The popup identifies missing or uncertain information without guessing values.
+6. The user clicks the download action. Generate the TXT using the latest edited values and invoke the downloads API.
 
-建议使用 TypeScript，数据模型至少包含：
+Provide extract, re-extract, and download controls with progress and error feedback. Put long descriptions in a scrollable multiline editor. Extraction alone must not trigger a download.
+
+## 4. Data model and TXT output
+
+Use TypeScript where practical. The model must include at least:
 
 ```ts
 type ApplicationType = 'easy_apply' | 'external' | 'unknown';
@@ -52,177 +59,187 @@ interface JobExport {
   description: string;
   sourceUrl: string;
   jobId: string;
-  extractedAt: string; // ISO 8601，带时区信息
-  warnings: string[];
+  extractedAt: string; // ISO 8601 with timezone information
+  warnings: string[]; // English export messages; UI localization is separate
 }
 ```
 
-下载文本格式：
+TXT template:
 
 ```text
-公司名称：Marble AI
-岗位名称：Software Engineer
+Company Name: Marble AI
+Job Title: Software Engineer
 
-申请类型：外部申请
-申请地址：https://jobs.ashbyhq.com/marble.ai/6f832eeb-08ff-4fb7-8788-420633a72960/application
-ATS：Ashby
+Application Type: External Application
+Application URL: https://jobs.ashbyhq.com/marble.ai/6f832eeb-08ff-4fb7-8788-420633a72960/application
+ATS: Ashby
 
-LinkedIn 地址：https://www.linkedin.com/jobs/view/123456789/
-Job ID：123456789
-提取时间：<ISO 8601 时间>
+LinkedIn URL: https://www.linkedin.com/jobs/view/123456789/
+Job ID: 123456789
+Extracted At: <ISO 8601 timestamp>
 
-岗位介绍：
-<完整已加载正文，保留段落与列表>
+Job Description:
+<Original description, preserving paragraphs and lists>
 
-提取备注：
-<仅在存在警告时输出，每项一行>
+Extraction Notes:
+<English warnings, one per line; omit this entire section if there are none>
 ```
 
-字段规则：
+Output rules:
 
-- Easy Apply：申请类型写 `LinkedIn Easy Apply`，申请地址写规范化的当前岗位链接，ATS 写 `不适用`。这是申请入口，不能表示为外部 ATS 地址。
-- 外部申请且 ATS 未识别：ATS 写 `未识别`，保留有效申请地址。
-- 申请方式无法判断：写 `无法确定`；无有效地址时写 `未取得`。
-- 规范化来源链接仅保留 `/jobs/view/<job_id>/`，移除跟踪参数。
-- 不翻译、不总结、不改写岗位介绍。
-- 不导出中转链接里的 `urlhash`、`mt`、`lipi` 等参数，也不在日志中记录完整中转链接。
+| Condition | Application Type | Application URL | ATS |
+| --- | --- | --- | --- |
+| Easy Apply | LinkedIn Easy Apply | Canonical current job URL | Not Applicable |
+| External application with recognized ATS | External Application | Valid extracted target URL | Recognized ATS name |
+| External application with unrecognized ATS | External Application | Valid extracted target URL | Unrecognized |
+| External application without a readable URL | External Application | Not Available | Unrecognized |
+| Application method cannot be determined | Unknown | Valid external URL if independently established, otherwise Not Available | Recognized name if established, otherwise Unrecognized |
 
-## 5. Apply 地址解析：核心要求
+- For Easy Apply, the saved job URL is an application entry point, not an external ATS URL.
+- Normalize the LinkedIn source URL to `/jobs/view/<job-id>/` without tracking parameters.
+- Do not translate, summarize, or rewrite the job description.
+- Do not export outer redirect parameters such as `urlhash`, `mt`, or `lipi`; do not log the full redirect URL.
+- Prefer warning codes internally and map them to English export messages and separately localized UI messages.
+- Example exported warnings: `Application URL is not available in the loaded page.` and `The job description may be incomplete. Expand it manually and extract again.`
 
-外部 Apply 可能提供 LinkedIn safety 中转链接：
+## 5. Apply URL parsing
+
+An external Apply link may be a LinkedIn safety redirect:
 
 ```text
 https://www.linkedin.com/safety/go/?url=https%3A%2F%2Fjobs.ashbyhq.com%2Fmarble.ai%2F6f832eeb-08ff-4fb7-8788-420633a72960%2Fapplication&urlhash=example&isSdui=true
 ```
 
-期望导出：
+Expected exported application URL:
 
 ```text
 https://jobs.ashbyhq.com/marble.ai/6f832eeb-08ff-4fb7-8788-420633a72960/application
 ```
 
-规则：
+Requirements:
 
-1. 只从当前岗位主申请控件的实际 `href` 等可验证链接属性读取候选地址。不能扫描全页随意取一个含 `url` 的链接。
-2. 使用 `new URL(rawHref, sourceUrl)` 解析绝对/相对链接。
-3. 仅当 hostname 为 `www.linkedin.com` 或 `linkedin.com`，且 pathname 为 `/safety/go/`（允许无结尾斜杠）时，按中转链接处理。
-4. 使用 `searchParams.getAll('url')`：要求有且仅有一个非空值。缺失、空值或重复参数标记异常，避免歧义。
-5. `URLSearchParams` 已完成查询参数解码，不再无条件调用 `decodeURIComponent`。不能用字符串截取或正则取 `url=` 后全部内容。
-6. 中转目标必须为有效的绝对 HTTP/HTTPS URL；拒绝相对目标、`javascript:`、`data:`、`file:` 等以及含用户名密码的 URL。
-7. 正常的外部直接 HTTP/HTTPS 链接直接作为申请地址；不能把其他 LinkedIn 内部链接误判为外部申请。
-8. 原样保留目标 URL 内部有意义的查询参数与编码，不剥离 ATS 的职位 ID、token 或来源参数。不要反复解码，也不要重新编码整条目标地址。
-9. 对嵌套中转、未知内部跳转或损坏 URL，首版显示“申请地址无法解析”，允许手动补充，不递归访问或跟随跳转。
-10. 若 Apply 是事件按钮、实际地址只有用户点击后才产生，则返回“当前页面未提供可读取的申请地址”，不要自动点击或拦截网页请求。
+1. Read candidate links only from verifiable link attributes, such as `href`, belonging to the current job's primary application control. Do not choose an arbitrary page link containing `url`.
+2. Parse absolute or relative links with `new URL(rawHref, sourceUrl)`.
+3. Treat a link as a supported safety redirect only when its hostname is exactly `www.linkedin.com` or `linkedin.com`, and its pathname is `/safety/go/` or `/safety/go`.
+4. Use `searchParams.getAll('url')` and require exactly one nonempty value. Missing, empty, or duplicate values are errors.
+5. `URLSearchParams` already decodes the query parameter. Do not unconditionally apply `decodeURIComponent` again. Do not slice everything after `url=` or use a regex as the query parser.
+6. Require the extracted target to be a valid absolute HTTP or HTTPS URL. Reject relative targets, unsupported protocols such as `javascript:`, `data:`, and `file:`, and URLs containing username/password credentials.
+7. Accept valid direct external HTTP/HTTPS application links. Do not misclassify other LinkedIn internal links as external applications.
+8. Preserve meaningful query parameters and encoding inside the target URL, including job identifiers, tokens, and source parameters. Do not repeatedly decode or re-encode the entire target.
+9. For nested redirects, unsupported internal redirects, or malformed URLs, report an English export warning and permit manual correction. Do not recursively visit or follow redirects.
+10. If Apply is an event-driven button whose URL exists only after a click, report that the URL is unavailable in the loaded page. Do not click it or intercept requests.
 
-这里的“最终地址”仅指从 `url` 参数提取到的目标地址，不保证它经过后续服务端重定向后的最终落地页。整个解析过程不得发起网络请求。
+The extracted target URL is not guaranteed to be the ultimate landing page after additional server-side redirects. URL parsing must not initiate network requests.
 
-ATS 识别采用域名规则，至少覆盖 Ashby（`jobs.ashbyhq.com`）。可扩展 Greenhouse、Lever、Workday、SmartRecruiters 的明确域名，但需有测试支持；不确定时返回 null。域名匹配必须按完整主机名或点分子域边界匹配，避免把 `jobs.ashbyhq.com.evil.example` 识别为 Ashby。外部公司自有招聘站不一定使用可识别 ATS。
+Identify ATS providers using explicit domain rules. Support at least Ashby at `jobs.ashbyhq.com`. Greenhouse, Lever, Workday, and SmartRecruiters may be added with explicit rules and tests. Return null when uncertain. Match exact hostnames or valid dot-delimited subdomains; `jobs.ashbyhq.com.evil.example` must not match Ashby. A company-owned careers site need not have an identifiable ATS.
 
-用户手动编辑申请地址后，也应运行同样的 URL 校验并重新计算 ATS；不要保留过期的 ATS 判断。切换为 Easy Apply 时，地址恢复为当前岗位链接。
+Revalidate manually edited application URLs and recompute ATS identification. Do not retain stale ATS values. Switching to Easy Apply resets the application URL to the canonical current job URL.
 
-## 6. DOM 提取策略与不完整数据
+## 6. DOM extraction and incomplete data
 
-- 优先定位当前岗位详情主容器，再从其中提取字段。避免混入推荐职位、侧栏岗位、导航文字、广告或公司简介。
-- 提取策略集中到适配模块，采用多个可维护的候选定位方案；不要把易变样式类名散落到各文件。
-- 可结合语义标签、标题层级、链接、可访问名称和稳定属性。不要把未经验证的选择器写成已验证事实。
-- 只读取 DOM 中已存在的相关岗位数据，不读取网页脚本变量、未公开缓存或框架内部状态。
-- 岗位正文转纯文本时保留段落、换行和列表，可给列表项添加 `- `，压缩多余连续空行，排除按钮文字和无关内容。
-- 内容已在 DOM 中、仅被 CSS 折叠时，可读取完整正文；内容未加载到 DOM 时不能补全。若能检测到仍有“展开”控件，提示用户确认完整性；不能可靠判断时不声称已完整提取。
-- Easy Apply 识别优先依赖主申请控件及语义信息，可结合英文 `Easy Apply` 和中文文案，不对页面任意位置的同名文本做匹配。
-- 页面存在互相矛盾的申请证据或多个不明确的主控件时，标记 unknown 并提示人工确认。
-- 页面尚未加载、岗位下架、登录墙或主容器缺失时，给出具体错误，不把整页文字当岗位介绍。
-- 不用固定长等待掩盖加载问题；首版可直接提示用户待加载后重新提取。
-- 每次用户操作重新检查当前 URL 和 Job ID。页面已在站内切换时，不能把新页面数据拼进旧岗位；发现提取前后 ID 不一致，应丢弃本次结果并提示重新提取。
+- Locate the current job details container before extracting fields. Exclude recommended jobs, sidebar cards, navigation, advertisements, and unrelated company descriptions.
+- Keep extraction strategies in a dedicated adapter module with maintainable candidate locators. Do not scatter volatile CSS class names throughout the codebase.
+- Combine semantic elements, heading structure, links, accessible names, and stable attributes where practical. Do not claim unverified selectors are verified.
+- Read only relevant job data already present in the DOM. Do not inspect private page variables, undocumented caches, or framework internals.
+- Convert description markup to plain text while preserving paragraphs and lists. List items may use `- `. Collapse excessive blank lines and exclude control labels.
+- If the complete description is already in the DOM and merely CSS-collapsed, it may be extracted. Do not invent content absent from the DOM. If an expansion control suggests incomplete content, ask the user to check completeness and expand manually. Do not claim completeness when it cannot be determined reliably.
+- Detect Easy Apply from the primary application control and semantic context, supporting relevant English and Chinese page text. Do not match arbitrary page text containing Easy Apply.
+- Conflicting application evidence or ambiguous primary controls must produce an unknown state and a review warning.
+- Handle loading pages, expired listings, login walls, and missing job containers explicitly. Never use the entire page text as a fallback description.
+- Avoid fixed long waits. Ask the user to finish loading and extract again when appropriate.
+- Recheck the URL and job ID for each extraction. If the job ID changes during extraction, discard the result and ask the user to extract again. Do not mix data from jobs A and B.
 
-下载条件：公司名称、岗位名称、岗位介绍非空；任一缺失时，用户可手动补充后下载。申请类型/地址不明允许下载，但必须保留警告。不要凭空使用推荐岗位的内容填补缺失字段。
+Company name, job title, and description are required before download; the user may fill missing fields manually. Unknown application type or a missing application URL may be exported with English warnings. Do not fill missing fields using recommended jobs.
 
-## 7. 权限与扩展架构
+## 7. Permissions and architecture
 
-建议 Manifest V3，公共 TypeScript 核心，分别生成 Chromium 与 Firefox 的 manifest 和构建产物。后台入口根据目标浏览器适配，并在 README 记录实际支持/验证的最低版本；实施时查阅官方文档确认，不假设两者后台机制完全相同。
+Use Manifest V3 with a shared TypeScript core and separate Firefox and Chromium manifests/builds. Adapt background entry points to each browser. During implementation, consult official documentation and record the minimum supported and actually verified versions in the README.
 
-优先采用用户触发的临时权限：
+Prefer user-triggered temporary permissions:
 
-- `activeTab`：用户激活后访问当前标签页。
-- `scripting`：按需注入 DOM 提取函数。
-- `downloads`：下载 TXT。
+- `activeTab`: access to the user-activated current tab.
+- `scripting`: on-demand DOM extraction injection.
+- `downloads`: TXT download.
 
-首版不申请 `<all_urls>`、长期 LinkedIn host 权限、Cookie、webRequest、剪贴板、全局 tabs 读取或 ATS 站点访问权限。若架构确实需要额外权限，先在实现说明中解释必要性，并优先寻找现有权限内的方案。
+Do not request `<all_urls>`, persistent LinkedIn host access, cookies, webRequest, clipboard access, broad tab-reading permission, or ATS host permissions in the initial version. If an additional permission is genuinely necessary, explain it and first look for an implementation within the existing permission set.
 
-建议职责划分：
+Suggested responsibilities:
 
-- popup：用户操作、预览、编辑、状态展示。
-- extract：当前岗位 DOM 提取与证据判断。
-- core：URL 校验/解析、ATS 识别、文本格式化、文件名清理。
-- background/平台适配：仅在所选下载实现需要时使用，避免无意义后台任务。
+- Popup: actions, preview, editing, and status display.
+- Extract adapter: job DOM extraction and application evidence.
+- Core: URL validation/parsing, ATS identification, TXT formatting, and filename sanitization.
+- Background/platform adapter: only where required by the chosen download implementation.
 
-可在扩展弹窗中创建 TXT Blob 和 object URL，再通过下载 API 下载，并在合适时机释放 URL。不要假设 service worker 支持 DOM 或 `URL.createObjectURL`。实现需在两个浏览器分别验证下载生命周期，避免弹窗关闭导致空文件或下载失效。
+A popup can create a TXT Blob and object URL, invoke the downloads API, and revoke the URL at an appropriate time. Do not assume a service worker has DOM APIs or `URL.createObjectURL`. Verify the download lifecycle in both browsers, including popup closure, to avoid empty files or aborted downloads.
 
-预览使用文本绑定或 textarea，不通过 `innerHTML` 渲染网页内容。首版数据仅驻留内存，不保存浏览历史或原始 HTML，不引入远程代码和运行时 CDN。
+Use text bindings or textareas for previews; do not render page content through `innerHTML`. Keep initial-version data in memory. Do not persist browsing history or raw HTML, and do not load remote code or runtime CDN assets.
 
-## 8. 文件命名
+## 8. Filenames and encoding
 
-- 默认：`new-jd-<公司名称>.txt`，不默认添加岗位名或 ID。
-- 保留中文、空格及常见 Unicode 字符。
-- 替换 `<>:"/\\|?*` 和控制字符；移除尾部点/空格，处理空白公司名、保留文件名及过长名称。
-- 公司名称清理后为空时，使用 `unknown-company-<job_id>`。
-- 限制公司名部分长度，避免超出常见文件系统限制。
-- 重名采用下载 API 的 uniquify 行为，不静默覆盖。浏览器具体添加 `(1)` 或其他后缀均可。
-- 用户编辑公司名称后，下载文件名也应更新。
-- 内容为 UTF-8 `text/plain`；统一换行策略并在 README 中说明。可使用 UTF-8 BOM 改善部分文本编辑器兼容性。
+- Default: `new-jd-<company-name>.txt`; do not automatically append job title or job ID.
+- The prefix, extension, project filenames, and generated documentation filenames use English. Preserve the original company name, including Chinese or other Unicode characters, unless the user edits it. Do not auto-translate or transliterate company names.
+- Replace `<>:"/\\|?*` and control characters. Remove trailing dots/spaces and handle reserved names, empty results, and excessive length.
+- If the sanitized company name is empty, use `unknown-company-<job-id>`.
+- Limit the company-name component to avoid common filesystem limits.
+- Use the downloads API's uniquify behavior for collisions; never silently overwrite. Browser-generated suffixes such as `(1)` are acceptable.
+- Update the filename when the user edits the company name.
+- Generate UTF-8 `text/plain` content and document the newline policy. A UTF-8 BOM is acceptable for editor compatibility.
 
-## 9. 错误与状态
+## 9. Errors and state
 
-至少覆盖：不支持的页面、权限/注入失败、页面加载未完成、岗位内容缺失、申请地址缺失/非法、提取期间切换岗位、下载失败。
+Handle unsupported pages, injection/permission failure, incomplete loading, missing job content, missing/invalid application URLs, job navigation during extraction, and download failure.
 
-提取/下载进行中应禁用对应按钮，避免重复执行。重新提取覆盖编辑内容前，若存在未保存修改，给出轻量提醒。错误信息用中文，说明用户下一步能做什么。用户取消浏览器下载不应显示成插件崩溃。
+Disable relevant buttons while extracting or downloading. Warn before re-extraction overwrites unsaved edits. Initial popup errors may be Chinese and should explain the user's next action; corresponding messages written to TXT must be English. User cancellation of a download is not an extension crash.
 
-## 10. 验证与验收标准
+## 10. Verification and acceptance criteria
 
-请用有意义的纯函数测试与本地 HTML fixture 测试验证关键逻辑，无需为了覆盖率重复实现细节。
+Use meaningful pure-function tests and local HTML fixture tests for critical logic. Do not add implementation-mirroring tests merely to raise coverage.
 
-| 场景 | 期望结果 |
+| Scenario | Expected result |
 | --- | --- |
-| 用户未点击提取 | 不读取页面、不下载、不发请求 |
-| Saved Jobs 或其他页面 | 提示仅支持岗位详情页，不扫描列表 |
-| 完整 Easy Apply 岗位 | 正确四项核心内容，申请入口为当前岗位链接 |
-| Ashby safety 链接 | 解析为本文示例目标地址，ATS 为 Ashby |
-| 外部直接申请链接 | 保留有效地址，不要求必须识别 ATS |
-| 目标含 `?a=1&b=2` | 参数完整保留，不混入外层 urlhash |
-| 目标含 `%2F`、`%25`、编码加号 | 不二次解码、不破坏地址 |
-| 相对 safety 链接 | 基于当前页面解析，正确提取目标 |
-| 缺失/空/重复 url 参数 | 标记异常，不猜测地址 |
-| 非 HTTP(S)、含凭据或伪造域名 | 拒绝非法地址或正确判定域名，不误识别 |
-| Apply 地址仅点击后才生成 | 显示未取得，不点击、不跟踪网络 |
-| 正文有标题、段落、项目列表 | TXT 保持可读结构，没有推荐职位正文 |
-| 正文未加载完整 | 不声称完整，提示用户展开并重新提取 |
-| 当前页面从岗位 A 切到 B | 不下载 A/B 混合结果，重新提取 B |
-| 编辑字段后下载 | 文本、ATS 和文件名反映最新编辑内容 |
-| 中文公司名、非法字符、超长名称、重名 | 文件名可用，UTF-8 正常，无静默覆盖 |
-| 模拟下载失败或取消 | 状态可恢复，用户可以重试 |
+| User has not clicked extract | No page extraction, download, or extension-initiated request |
+| Saved Jobs or unsupported page | Explain supported pages; do not scan lists |
+| Complete Easy Apply listing | Correct core fields; application entry is the current job URL |
+| Ashby safety redirect | Exact target from the example; ATS is Ashby |
+| Direct external application URL | Valid URL preserved even if ATS is unrecognized |
+| Target contains `?a=1&b=2` | Both target parameters preserved; outer urlhash excluded |
+| Target contains `%2F`, `%25`, or encoded plus signs | No double decoding or URL corruption |
+| Relative safety redirect | Resolved against the current page and parsed correctly |
+| Missing, empty, or duplicate url parameter | Explicit error, no guessed URL |
+| Unsupported protocol, credentials, or misleading hostname | Invalid targets rejected; domain identification remains correct |
+| Apply URL generated only after clicking | Mark unavailable; do not click or monitor network |
+| Description contains headings, paragraphs, and lists | Readable TXT structure; no recommended-job text |
+| Description may be incomplete | Clear warning; no false completeness claim |
+| Page changes from job A to job B | No mixed result; re-extract B |
+| User edits fields | TXT, ATS, and filename reflect latest edits |
+| Chinese/Unicode company name or description | Source text preserved; generated labels remain English |
+| Chinese popup warning | Export uses the equivalent English message |
+| Invalid filename characters, long names, or collisions | Valid UTF-8 file; no silent overwrite |
+| Download failure or cancellation | Recoverable state and retry |
 
-浏览器手工验收分别在 Firefox 和至少一个 Chromium 浏览器执行：加载扩展、提取、编辑、下载并打开 TXT。检查浏览器控制台和扩展发起的网络请求，确认扩展本身没有额外请求岗位/ATS 数据；LinkedIn 页面自身请求应与扩展行为区分。
+Manually verify loading, extraction, editing, downloading, and opening TXT in Firefox and at least one Chromium browser. Inspect extension behavior to ensure it does not request job/ATS data. Distinguish LinkedIn page requests from extension-initiated requests.
 
-如没有登录后的真实页面，先完成 fixture 测试和可加载产物，明确说明 DOM 适配与真实下载行为哪些已测、哪些待测。不能把仅 fixture 通过写成“LinkedIn 实测通过”。
+When a signed-in real page is unavailable, deliver fixture tests and loadable builds and list outstanding DOM/download verification. Fixture tests alone do not establish real LinkedIn compatibility.
 
-## 11. 交付清单
+## 11. Deliverables
 
-1. 完整源代码与依赖锁文件。
-2. 一条命令安装依赖、一条命令运行测试及构建的脚本。
-3. 分别可加载的 `dist/chromium/` 和 `dist/firefox/`，以及对应 ZIP 包。
-4. README：功能范围、权限原因、构建命令、Chromium 加载已解压扩展步骤、Firefox 临时加载步骤、已知限制及实际测试环境。
-5. 独立的申请 URL 解析和 ATS 识别模块，便于后续维护。
-6. DOM fixture 与关键测试；说明哪些选择器经过真实页面验证。
-7. 简短实现报告：完成内容、测试结果、尚未验证项。
+1. Complete source code and dependency lockfile.
+2. Documented dependency installation, test, and build commands.
+3. Loadable `dist/chromium/` and `dist/firefox/` directories and corresponding ZIP packages.
+4. English README covering scope, permission rationale, build commands, Chromium unpacked loading, Firefox temporary loading, limitations, and actual test environments.
+5. Dedicated application URL parsing and ATS identification modules.
+6. DOM fixtures and critical tests, identifying selectors actually checked against real pages.
+7. English implementation report covering completed work, test results, and outstanding verification.
 
-首版不包含扩展商店上架、签名发布、后端部署或任何 LinkedIn 自动访问功能。
+Do not include extension-store submission, signing/publishing, backend deployment, or LinkedIn automation.
 
-## 12. 建议实施顺序
+## 12. Implementation order
 
-1. 初始化最小跨浏览器项目和构建配置。
-2. 完成 URL 解析、ATS 识别、TXT 格式化和文件名处理及关键测试。
-3. 实现用户触发的当前页 DOM 提取，使用 fixture 验证范围与完整性提示。
-4. 实现可编辑弹窗和下载流程。
-5. 构建两个版本并做可用环境内的浏览器验证。
-6. 交付代码、安装包和清晰的实测/待测报告。
+1. Initialize the minimal cross-browser project and build configuration.
+2. Implement and test URL parsing, ATS identification, English TXT formatting, and filename handling.
+3. Implement user-triggered DOM extraction with fixtures and completeness warnings.
+4. Implement editable preview and download.
+5. Build both variants and verify them in available browsers.
+6. Deliver code, packages, and a clear verified/unverified report.
 
-默认按本文推进；不要扩展回 Saved Jobs 批量遍历，也不要为获取外部地址增加自动点击、请求或跳转。
+Proceed within this scope. Do not reintroduce Saved Jobs traversal or add automatic clicks, requests, or navigation to obtain external URLs.
