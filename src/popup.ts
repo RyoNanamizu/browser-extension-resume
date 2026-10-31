@@ -1,6 +1,7 @@
 import { revalidateDraft } from './core/draft';
 import { createFilename } from './core/filename';
 import type { ApplicationType, ExtractionError, JobDraft } from './core/model';
+import { parseJobSource, sourceDefinitions, supportsApplicationType } from './core/sources';
 import { uiMessages } from './core/warnings';
 import { api } from './platform/api';
 import type { DownloadReply } from './platform/download';
@@ -29,8 +30,13 @@ let dirty = false;
 let busy = false;
 let downloadId: number | null = null;
 
+const supportedSources = Object.values(sourceDefinitions);
+get('source-intro').textContent = '打开 ' + supportedSources.map(source => source.name).join('、')
+  + ' 职位详情页，加载并手动展开描述后提取。';
+
 const errors: Record<ExtractionError, string> = {
-  unsupported_page: '请打开 https://www.linkedin.com/jobs/view/数字职位编号/ 职位详情页，再点击提取。不支持职位列表或已保存职位。',
+  unsupported_page: '请打开支持的单个职位详情页：'
+    + supportedSources.map(source => source.exampleUrl).join(' 或 ') + '，再点击提取。',
   login_required: '页面要求登录。请手动登录并加载职位详情后重试。',
   expired_job: '页面显示该职位已过期或停止接受申请。请打开有效的职位详情页。',
   page_loading: '职位内容尚在加载。请等待网页加载完成后重新提取。',
@@ -56,6 +62,13 @@ function setBusy(value: boolean) {
 
 function render() {
   if (!draft) return;
+  const source = parseJobSource(draft.sourceUrl);
+  for (const option of fields.applicationType.options) {
+    const supported = !!source && supportsApplicationType(source, option.value as ApplicationType);
+    option.hidden = !supported;
+    option.disabled = !supported;
+  }
+  fields.applicationType.value = draft.applicationType;
   editor.hidden = false;
   extractButton.hidden = true;
   reextractButton.hidden = false;
@@ -66,8 +79,10 @@ function render() {
   fields.applicationUrl.value = draft.applicationUrl || '';
   fields.ats.value = draft.atsName || '';
   const urlStatuses = { available: '链接可用', missing: '链接缺失；仍可带说明导出', invalid: '链接无效；导出时将标记为 Not Available' };
-  get('url-status').textContent = draft.applicationType === 'easy_apply'
-    ? '使用当前 LinkedIn 职位链接作为申请入口。' : urlStatuses[draft.applicationUrlStatus];
+  get('url-status').textContent = source && draft.applicationUrl === draft.sourceUrl
+    && draft.applicationUrlStatus === 'available'
+    ? '使用当前 ' + sourceDefinitions[source.siteId].name + ' 职位链接作为申请入口。'
+    : urlStatuses[draft.applicationUrlStatus];
   get('filename').textContent = createFilename(draft.companyName, draft.jobId);
   get('source').textContent = draft.sourceUrl;
   get('extracted-at').textContent = draft.extractedAt;
@@ -128,6 +143,11 @@ get('cancel-reextract').addEventListener('click', () => { overwrite.hidden = tru
 for (const field of Object.values(fields)) {
   field.addEventListener('input', () => {
     if (!draft || busy) return;
+    const source = parseJobSource(draft.sourceUrl);
+    if (!source || !supportsApplicationType(source, fields.applicationType.value as ApplicationType)) {
+      fields.applicationType.value = draft.applicationType;
+      return;
+    }
     const oldType = draft.applicationType;
     const urlChanged = field === fields.applicationUrl || field === fields.applicationType;
     let applicationUrl = fields.applicationUrl.value;

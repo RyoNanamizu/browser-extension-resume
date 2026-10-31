@@ -24,7 +24,33 @@ function sduiPage(loaded) {
 </main></body></html>`;
 }
 
+export const ashbyJobId = '11111111-2222-4333-8444-555555555555';
+export const ashbySourceUrl = `https://jobs.ashbyhq.com/example.ai/${ashbyJobId}`;
+
+function ashbyHostedPage() {
+  const lists = [8, 7, 4, 5, 8].map((count, group) => `<p><strong>Synthetic section ${group + 1}</strong></p><ul>${Array.from({ length: count }, (_, item) =>
+    `<li><p><strong>Responsibility ${group + 1}.${item + 1}:</strong> Preserve this synthetic list item and its original paragraph.</p></li>`).join('')}</ul>`).join('');
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><link rel="icon" href="data:,"><title>Synthetic Web Engineer @ Display Company</title></head><body>
+<div id="root">
+  <div class="ashby-job-posting-header"><a href="https://company.example/"><img alt="Display Company"></a><a class="ashby-job-board-back-to-all-jobs-button" href="/example.ai" aria-label="Back to Display Company’s Job Listings"></a></div>
+  <div class="generated-container-v1"><div><h1 class="generated-title-v1 ashby-job-posting-heading">Synthetic Web Engineer</h1></div>
+    <div><div class="ashby-job-posting-left-pane"><h2>Location</h2><p>Example City</p><h2>Department</h2><p>Example Team</p></div>
+      <div class="ashby-job-posting-right-pane">
+        <nav role="tablist"><a id="job-overview" role="tab" aria-controls="overview" aria-selected="true" href="/example.ai/${ashbyJobId}">Overview</a><a id="job-application-form" role="tab" aria-controls="form" href="/example.ai/${ashbyJobId}/application">Application</a></nav>
+        <div id="overview" role="tabpanel" aria-labelledby="job-overview" class="generated-panel-v1 ashby-job-posting-description-container">
+          <div class="generated-description-v1 ashby-job-posting-description"><p>Synthetic opening paragraph with <strong>original wording</strong>.</p><p></p>${lists}<p>Line one.<br>Line two.</p><p><em>End of the synthetic Ashby description.</em></p></div>
+          <a class="apply-link" href="/example.ai/${ashbyJobId}/application"><button>Apply for this Job</button></a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <aside><h1 class="ashby-job-posting-heading">Recommended Job</h1><div class="ashby-job-posting-description">Unrelated recommended content</div><span role="progressbar"></span></aside>
+  <footer><p>Powered by Ashby</p><a href="https://company.example/privacy">Privacy Policy</a></footer>
+</div></body></html>`;
+}
+
 export function makePage(name) {
+  if (name === 'ashby-hosted') return ashbyHostedPage();
   if (name === 'sdui-empty') return sduiPage(false);
   if (name === 'sdui-loaded') return sduiPage(true);
   if (Object.hasOwn(legacyPages, name)) return legacyPages[name];

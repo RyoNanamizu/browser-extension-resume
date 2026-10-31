@@ -1,4 +1,4 @@
-import { makePage } from '../tests/pages.mjs';
+import { ashbySourceUrl, makePage } from '../tests/pages.mjs';
 import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
 import { mkdtemp, readFile, mkdir, writeFile } from 'node:fs/promises';
@@ -38,6 +38,8 @@ try {
   await context.route('https://www.linkedin.com/**', route => route.fulfill({ contentType: 'text/html; charset=utf-8',
     body: new URL(route.request().url()).pathname === '/jobs/view/900000001/'
       ? (useLoadedSdui ? loadedSduiHtml : sduiHtml) : fixtureHtml }));
+  await context.route('https://jobs.ashbyhq.com/**', route => route.fulfill({ contentType: 'text/html; charset=utf-8',
+    body: makePage('ashby-hosted') }));
   context.on('request', request => {
     if (/^https?:/.test(request.url())) requests.push(request.url());
   });
@@ -62,13 +64,13 @@ try {
   await popup.locator('#editor').waitFor({ state: 'visible' });
   assert.equal(await popup.locator('#company').inputValue(), 'Marble AI');
   assert.equal(await popup.locator('#ats').inputValue(), 'Ashby');
-  checks.push('Real activeTab grant and scripting.executeScript extracted the intercepted local Ashby fixture.');
+  checks.push('Real activeTab grant and scripting.executeScript extracted a LinkedIn fixture with an Ashby application link.');
   await popup.locator('#company').fill('星河科技 🚀');
   await popup.locator('#title').fill('软件工程师');
   await popup.locator('#description').fill('原始中文说明。\n\n- 第一项\n- 第二项');
   await popup.locator('#application-url').fill('https://jobs.lever.co/team/123?token=a%2Fb&plus=%2B');
   assert.equal(await popup.locator('#ats').inputValue(), 'Lever');
-  assert.equal(await popup.locator('#filename').textContent(), 'new-jd-星河科技 🚀.txt');
+  assert.equal(await popup.locator('#filename').textContent(), 'new-jd-星河科技-🚀.txt');
   await popup.locator('#reextract').click();
   assert.equal(await popup.locator('#overwrite').isVisible(), true);
   await popup.locator('#cancel-reextract').click();
@@ -80,7 +82,7 @@ try {
   await popup.waitForFunction(() => document.querySelector('#status').textContent.includes('TXT 已下载'));
   const [first] = await worker.evaluate(() => chrome.downloads.search({}));
   assert.equal(first.state, 'complete');
-  assert.match(first.filename, /new-jd-星河科技 🚀(?: \(\d+\))?\.txt$/);
+  assert.match(first.filename, /new-jd-星河科技-🚀(?: \(\d+\))?\.txt$/);
   const text = await readFile(first.filename, 'utf8');
   assert.match(text, /Company Name: 星河科技 🚀\nJob Title: 软件工程师/);
   assert.match(text, /ATS: Lever/);
@@ -142,7 +144,7 @@ try {
   await sduiPopup.locator('#download').click();
   await sduiPopup.waitForFunction(() => document.querySelector('#status').textContent.includes('TXT 已下载'));
   const exampleDownload = (await worker.evaluate(() => chrome.downloads.search({})))
-    .find(item => /new-jd-Example Company(?: \(\d+\))?\.txt$/.test(item.filename));
+    .find(item => /new-jd-Example-Company(?: \(\d+\))?\.txt$/.test(item.filename));
   assert.equal(exampleDownload?.state, 'complete');
   const sduiText = await readFile(exampleDownload.filename, 'utf8');
   assert.match(sduiText, /Company Name: Example Company\nJob Title: Platform Engineer/);
@@ -153,11 +155,43 @@ try {
   await writeFile(join(output, 'sdui-export.txt'), sduiText);
   checks.push('The generated synthetic description was re-extracted and downloaded with over 6000 characters, all 32 items in four lists, and its final paragraph, excluding company/recommended-job content.');
   checks.push('Populated descriptions produced no speculative completeness warning in the preview or TXT, and no empty Extraction Notes section.');
-  assert.deepEqual(requests, ['https://www.linkedin.com/jobs/view/123456789/', 'https://www.linkedin.com/jobs/view/900000001/', 'https://www.linkedin.com/jobs/view/900000001/']);
+  const ashbyNavigationUrl = ashbySourceUrl + '?utm_source=fixture';
+  await job.goto(ashbyNavigationUrl);
+  await browserCdp.send('Extensions.triggerAction', { id, targetId: targetInfo.targetId });
+  const ashbyPopup = await context.newPage();
+  await ashbyPopup.goto(`chrome-extension://${id}/popup.html`);
+  await worker.evaluate(tabId => chrome.tabs.update(tabId, { active: true }), jobTab.id);
+  await ashbyPopup.locator('#extract').click();
+  await ashbyPopup.locator('#editor').waitFor({ state: 'visible' });
+  assert.equal(await ashbyPopup.locator('#company').inputValue(), 'example.ai');
+  assert.equal(await ashbyPopup.locator('#title').inputValue(), 'Synthetic Web Engineer');
+  assert.equal(await ashbyPopup.locator('#application-url').inputValue(), ashbySourceUrl);
+  assert.equal(await ashbyPopup.locator('#ats').inputValue(), 'Ashby');
+  assert.deepEqual(await ashbyPopup.locator('#application-type option[value="easy_apply"]')
+    .evaluate(option => ({ disabled: option.disabled, hidden: option.hidden })), { disabled: true, hidden: true });
+  const ashbyDescription = await ashbyPopup.locator('#description').inputValue();
+  assert.equal((ashbyDescription.match(/^- /gm) || []).length, 32);
+  assert.ok(ashbyDescription.endsWith('End of the synthetic Ashby description.'));
+  assert.ok(!ashbyDescription.includes('Apply for this Job'));
+  assert.ok(!ashbyDescription.includes('Recommended Job'));
+  await ashbyPopup.locator('#download').click();
+  await ashbyPopup.waitForFunction(() => document.querySelector('#status').textContent.includes('TXT 已下载'));
+  const ashbyDownload = (await worker.evaluate(() => chrome.downloads.search({})))
+    .find(item => /new-jd-example\.ai(?: \(\d+\))?\.txt$/.test(item.filename));
+  assert.equal(ashbyDownload?.state, 'complete');
+  const ashbyText = await readFile(ashbyDownload.filename, 'utf8');
+  assert.ok(ashbyText.includes('Company Name: example.ai\nJob Title: Synthetic Web Engineer'));
+  assert.ok(ashbyText.includes('Application URL: ' + ashbySourceUrl + '\nATS: Ashby'));
+  assert.ok(ashbyText.includes('Source URL: ' + ashbySourceUrl));
+  assert.ok(ashbyText.includes(ashbyDescription));
+  assert.ok(!ashbyText.includes('LinkedIn URL:'));
+  await writeFile(join(output, 'ashby-export.txt'), ashbyText);
+  checks.push('Hosted Ashby extraction and native download retained the URL company, canonical job/application URL, and all 32 items across five lists, with Easy Apply disabled.');
+  assert.deepEqual(requests, ['https://www.linkedin.com/jobs/view/123456789/', 'https://www.linkedin.com/jobs/view/900000001/', 'https://www.linkedin.com/jobs/view/900000001/', ashbyNavigationUrl]);
   assert.deepEqual(errors, []);
-  checks.push('Only three test-driver fixture navigations requested job/ATS URLs; no popup runtime errors.');
+  checks.push('Only four test-driver fixture navigations requested job/ATS URLs; no extension-initiated requests or popup runtime errors.');
   const report = { version, browser: context.browser()?.version(), profile,
-    fixture: 'Generated synthetic legacy and SDUI test markup only. No saved pages, real job descriptions, or live LinkedIn access.', checks, errors };
+    fixture: 'Generated synthetic LinkedIn legacy/SDUI and hosted Ashby markup. No saved pages, real job descriptions, or live job-site access.', checks, errors };
   await writeFile(join(output, 'report.json'), JSON.stringify(report, null, 2) + '\n');
   console.log(JSON.stringify(report, null, 2));
 } finally { await context.close(); }

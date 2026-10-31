@@ -1,4 +1,4 @@
-import type { ExtractionError } from '../core/model';
+import type { ExtractionError } from '../../../core/model';
 import { isApplicationControl } from './control-semantics';
 import { locators } from './locators';
 

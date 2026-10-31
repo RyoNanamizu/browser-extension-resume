@@ -7,7 +7,7 @@ export function formatTxt(job: JobExport): string {
     `Application Type: ${applicationTypes[job.applicationType]}`,
     `Application URL: ${job.applicationUrlStatus === 'available' && job.applicationUrl ? job.applicationUrl : 'Not Available'}`,
     `ATS: ${job.applicationType === 'easy_apply' ? 'Not Applicable' : job.atsName || 'Unrecognized'}`, '',
-    `LinkedIn URL: ${job.sourceUrl}`, `Job ID: ${job.jobId}`, `Extracted At: ${job.extractedAt}`, '',
+    `Source URL: ${job.sourceUrl}`, `Job ID: ${job.jobId}`, `Extracted At: ${job.extractedAt}`, '',
     'Job Description:', job.description,
   ];
   if (job.warnings.length) lines.push('', 'Extraction Notes:', ...job.warnings);

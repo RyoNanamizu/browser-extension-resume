@@ -1,4 +1,4 @@
-// Legacy and signed-in SDUI candidates have synthetic test coverage.
+// LinkedIn legacy and signed-in SDUI candidates have synthetic test coverage.
 // Live-page verification is separate.
 export const locators = {
   containers: [

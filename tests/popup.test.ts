@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { build } from 'esbuild';
 import { JSDOM } from 'jsdom';
 import type { JobDraft } from '../src/core/model';
+import { ashbyJobId, ashbySourceUrl } from './pages.mjs';
 
 const html = await readFile('public/popup.html', 'utf8');
 const compiled = await build({ entryPoints: ['src/popup.ts'], bundle: true, format: 'iife', write: false });
@@ -18,19 +19,19 @@ function job(): JobDraft {
 async function settle() {
   for (let i = 0; i < 4; i++) await new Promise<void>(resolve => setImmediate(resolve));
 }
-function popup() {
+function popup(initialJob = job()) {
   const page = new JSDOM(html, { url: 'https://extension-test.example/popup.html', runScripts: 'outside-only' });
   const calls = { tabs: 0, injections: 0, messages: [] as { type: string; job: JobDraft }[] };
-  const state = { failInjection: false, reply: { ok: true, id: 1 } as unknown,
+  const state = { job: initialJob, failInjection: false, reply: { ok: true, id: 1 } as unknown,
     downloadState: 'complete', error: undefined as string | undefined };
   let changed: (delta: unknown) => void = () => {};
   Object.assign(page.window, { TextEncoder, chrome: {
-    tabs: { query: async () => { calls.tabs++; return [{ id: 1, url: job().sourceUrl }]; },
-      get: async () => ({ id: 1, url: job().sourceUrl }) },
+    tabs: { query: async () => { calls.tabs++; return [{ id: 1, url: state.job.sourceUrl }]; },
+      get: async () => ({ id: 1, url: state.job.sourceUrl }) },
     scripting: { executeScript: async () => {
       calls.injections++;
       if (state.failInjection) throw new Error('Denied');
-      return [{ frameId: 0, result: { ok: true, job: job() } }];
+      return [{ frameId: 0, result: { ok: true, job: state.job } }];
     } },
     runtime: { sendMessage: async (message: { type: string; job: JobDraft }) => { calls.messages.push(message); return state.reply; } },
     downloads: { search: async () => [{ state: state.downloadState, error: state.error }],
@@ -53,21 +54,48 @@ test('opening the popup reads no tab or DOM and starts no download', () => {
   assert.equal(ui.calls.injections, 0);
   assert.equal(ui.calls.messages.length, 0);
   assert.equal(ui.get<HTMLFormElement>('editor').hidden, true);
+  assert.match(ui.get('source-intro').textContent!, /LinkedIn.*Ashby/);
+  ui.page.window.close();
+});
+
+test('Ashby preview uses its source URL, disallows Easy Apply, and retains editable fields', async () => {
+  const ui = popup({ ...job(), sourceUrl: ashbySourceUrl, jobId: ashbyJobId,
+    companyName: 'example.ai', applicationUrl: ashbySourceUrl });
+  ui.get('extract').click(); await settle();
+  const select = ui.get<HTMLSelectElement>('application-type');
+  const easy = [...select.options].find(option => option.value === 'easy_apply')!;
+  assert.equal(easy.hidden, true);
+  assert.equal(easy.disabled, true);
+  assert.equal(select.value, 'external');
+  assert.equal(ui.get<HTMLInputElement>('application-url').value, ashbySourceUrl);
+  assert.match(ui.get('url-status').textContent!, /当前 Ashby 职位链接/);
+  ui.input('application-type', 'easy_apply');
+  assert.equal(select.value, 'external');
+  ui.input('company', 'Edited Company');
+  assert.equal(ui.get('filename').textContent, 'new-jd-Edited-Company.txt');
+  ui.get('download').click(); await settle();
+  assert.equal(ui.calls.messages[0]!.job.applicationUrl, ashbySourceUrl);
+  assert.equal(ui.calls.messages[0]!.job.companyName, 'Edited Company');
+  ui.state.job = job();
+  ui.get('reextract').click(); await settle();
+  assert.equal(easy.hidden, false);
+  assert.equal(easy.disabled, false);
   ui.page.window.close();
 });
 
 test('editing the preview updates payload, ATS, and filename without interpreting HTML', async () => {
   const ui = popup();
   ui.get('extract').click(); await settle();
-  ui.input('company', '新公司/平台');
+  ui.input('company', '新 公司/平台');
   ui.input('title', '<img src=x onerror=alert(1)>');
   ui.input('description', '用户原文。\n\n- 条目');
   ui.input('application-url', 'https://jobs.lever.co/team/123');
   assert.equal(ui.get<HTMLInputElement>('ats').value, 'Lever');
-  assert.equal(ui.get('filename').textContent, 'new-jd-新公司-平台.txt');
+  assert.equal(ui.get('filename').textContent, 'new-jd-新-公司-平台.txt');
   assert.equal(ui.page.window.document.querySelector('img'), null);
   ui.get('download').click(); await settle();
   const payload = ui.calls.messages[0]!.job;
+  assert.equal(payload.companyName, '新 公司/平台');
   assert.equal(payload.jobTitle, '<img src=x onerror=alert(1)>');
   assert.equal(payload.description, '用户原文。\n\n- 条目');
   assert.equal(payload.atsName, 'Lever');

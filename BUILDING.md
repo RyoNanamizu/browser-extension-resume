@@ -1,6 +1,6 @@
-# Reproduce version 1.0.5
+# Reproduce version 1.1.0
 
-This source archive matches Current Job TXT Exporter 1.0.5. It contains the TypeScript sources, original popup HTML/CSS, manifests, tests, build scripts, dependency lockfile, and documentation.
+This source archive matches Current Job TXT Exporter 1.1.0. It contains the TypeScript sources, original popup HTML/CSS, manifests, tests, build scripts, dependency lockfile, and documentation.
 
 ## Environment
 
@@ -18,7 +18,7 @@ pnpm build
 pnpm verify:build
 ```
 
-The Firefox submission is `dist/current-job-txt-firefox-1.0.5.zip`; its unpacked files are in `dist/firefox/`. The same build also produces the Chromium package and `dist/SHA256SUMS`.
+The Firefox submission is `dist/current-job-txt-firefox-1.1.0.zip`; its unpacked files are in `dist/firefox/`. The same build also produces the Chromium package and `dist/SHA256SUMS`.
 
 The build uses esbuild to transpile and bundle TypeScript, copies the popup HTML/CSS and browser manifests, generates the PNG icons locally, and packages the output. It does not minify or obfuscate the code. The workspace explicitly allows esbuild's installation script and disables the unused legacy spawn-sync build script. The Firefox manifest requires version 142 or later and declares no data collection.
 
@@ -34,4 +34,4 @@ These checks do not require a live LinkedIn account. Native browser smoke tests 
 
 ## Source packaging
 
-`pnpm package:source` creates `releases/current-job-txt-source-1.0.5.zip` and a separate SHA-256 checksum. Packaging uses an explicit allowlist: source directories, build/test scripts, manifests, documentation, and dependency configuration. Tests generate their own synthetic markup in code. Saved pages, real job descriptions, exported TXT samples, verification reports, browser profiles, node_modules, .git, and built extension packages are excluded.
+`pnpm package:source` creates `releases/current-job-txt-source-1.1.0.zip` and a separate SHA-256 checksum. Packaging uses an explicit allowlist: source directories, build/test scripts, manifests, documentation, and dependency configuration. Tests generate their own synthetic markup in code. Saved pages, real job descriptions, exported TXT samples, verification reports, browser profiles, node_modules, .git, and built extension packages are excluded.

@@ -2,6 +2,7 @@ import { toJobExport } from '../core/draft';
 import { createFilename } from '../core/filename';
 import type { JobDraft } from '../core/model';
 import { parseJobSource } from '../core/source-url';
+import { supportsApplicationType } from '../core/sources';
 import { formatTxt, toTextDataUrl } from '../core/txt';
 import { exportMessages } from '../core/warnings';
 import type { DownloadResources, TextResource } from './download-resources';
@@ -15,7 +16,7 @@ export function isJobDraft(value: unknown): value is JobDraft {
   return !!source && source.sourceUrl === job.sourceUrl && source.jobId === job.jobId
     && ['companyName', 'jobTitle', 'description', 'extractedAt'].every(key => typeof (job as unknown as Record<string, unknown>)[key] === 'string')
     && !Number.isNaN(Date.parse(job.extractedAt))
-    && ['easy_apply', 'external', 'unknown'].includes(job.applicationType)
+    && supportsApplicationType(source, job.applicationType)
     && ['available', 'missing', 'invalid'].includes(job.applicationUrlStatus)
     && (job.applicationUrl === null || typeof job.applicationUrl === 'string')
     && (job.atsName === null || typeof job.atsName === 'string')

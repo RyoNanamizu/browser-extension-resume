@@ -1,5 +1,5 @@
 import type { ExtractionResult } from '../core/model';
-import { parseJobSource } from '../core/source-url';
+import { isSameJobSource, parseJobSource } from '../core/source-url';
 
 export interface ExtractionPort {
   tabs: Pick<typeof chrome.tabs, 'query' | 'get'>;
@@ -15,9 +15,11 @@ export async function extractFromActiveTab(port: ExtractionPort): Promise<Extrac
   });
   const final = await port.tabs.get(tab.id);
   const current = parseJobSource(final.url || '');
-  if (!current || current.jobId !== initial.jobId) return { ok: false, error: 'job_changed' };
+  if (!isSameJobSource(current, initial)) return { ok: false, error: 'job_changed' };
   const result = results.find(item => item.frameId === 0)?.result as ExtractionResult | undefined;
   if (!result || typeof result.ok !== 'boolean') throw new Error('Injection did not return a result.');
-  if (result.ok && result.job.jobId !== initial.jobId) return { ok: false, error: 'job_changed' };
+  if (result.ok && (result.job.jobId !== initial.jobId || result.job.sourceUrl !== initial.sourceUrl)) {
+    return { ok: false, error: 'job_changed' };
+  }
   return result;
 }

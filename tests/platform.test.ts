@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { extractFromActiveTab, type ExtractionPort } from '../src/platform/extraction';
 import { isJobDraft, startDownload } from '../src/platform/download';
 import type { JobDraft } from '../src/core/model';
+import { ashbyJobId, ashbySourceUrl } from './pages.mjs';
 
 const source = 'https://www.linkedin.com/jobs/view/123456789/';
 function job(): JobDraft {
@@ -10,6 +11,10 @@ function job(): JobDraft {
     sourceUrl: source, jobId: '123456789', extractedAt: '2026-10-24T12:00:00.000Z',
     applicationType: 'external', applicationUrl: 'https://jobs.ashbyhq.com/company/1',
     applicationUrlStatus: 'available', atsName: 'Ashby', warningCodes: [] };
+}
+function ashbyJob(): JobDraft {
+  return { ...job(), companyName: 'example.ai', sourceUrl: ashbySourceUrl,
+    jobId: ashbyJobId, applicationUrl: ashbySourceUrl };
 }
 function port(options: { initial?: string; final?: string; resultJob?: JobDraft; fail?: boolean } = {}) {
   const calls: unknown[] = [];
@@ -43,6 +48,23 @@ test('job navigation across the asynchronous injection boundary discards results
   assert.deepEqual(await extractFromActiveTab(mixed.api), { ok: false, error: 'job_changed' });
 });
 
+test('Ashby extraction crosses the injection boundary with a canonical source identity', async () => {
+  const mocked = port({ initial: ashbySourceUrl + '?tracking=1', final: ashbySourceUrl + '/',
+    resultJob: ashbyJob() });
+  assert.deepEqual(await extractFromActiveTab(mocked.api), { ok: true, job: ashbyJob() });
+  assert.equal(mocked.calls.length, 1);
+});
+
+test('company, site, and injected source changes are rejected even when job IDs match', async () => {
+  const otherCompany = ashbySourceUrl.replace('example.ai', 'another-company');
+  for (const options of [
+    { initial: ashbySourceUrl, final: otherCompany, resultJob: ashbyJob() },
+    { initial: source, final: 'https://jobs.ashbyhq.com/company/123456789' },
+    { resultJob: { ...job(), sourceUrl: 'https://www.linkedin.com/jobs/view/123456789/?tracking=1' } },
+    { initial: ashbySourceUrl, final: ashbySourceUrl, resultJob: { ...ashbyJob(), sourceUrl: otherCompany } },
+  ]) assert.deepEqual(await extractFromActiveTab(port(options).api), { ok: false, error: 'job_changed' });
+});
+
 test('permission/injection failures reach a recoverable popup error path', async () => {
   await assert.rejects(extractFromActiveTab(port({ fail: true }).api), /activeTab/);
 });
@@ -50,15 +72,28 @@ test('permission/injection failures reach a recoverable popup error path', async
 test('background download uses local UTF-8 data and uniquify with current edited fields', async () => {
   let options: chrome.downloads.DownloadOptions | undefined;
   const downloads = { download: async (value: chrome.downloads.DownloadOptions) => { options = value; return 17; } };
-  const draft = { ...job(), companyName: '新公司/团队', description: '编辑后的描述。' };
+  const draft = { ...job(), companyName: '新 公司/团队', description: '编辑后的描述。' };
   assert.deepEqual(await startDownload(draft, downloads as typeof chrome.downloads), { ok: true, id: 17 });
-  assert.equal(options?.filename, 'new-jd-新公司-团队.txt');
+  assert.equal(options?.filename, 'new-jd-新-公司-团队.txt');
   assert.equal(options?.conflictAction, 'uniquify');
   assert.equal(options?.saveAs, false);
   assert.ok(options?.url.startsWith('data:text/plain;charset=utf-8;base64,'));
   const text = Buffer.from(options!.url.split(',')[1]!, 'base64').toString('utf8');
-  assert.match(text, /Company Name: 新公司\/团队/);
+  assert.match(text, /Company Name: 新 公司\/团队/);
   assert.match(text, /编辑后的描述。/);
+});
+
+test('Ashby downloads export the URL company and the source URL as the application entry', async () => {
+  let options: chrome.downloads.DownloadOptions | undefined;
+  assert.equal(isJobDraft(ashbyJob()), true);
+  assert.deepEqual(await startDownload(ashbyJob(), {
+    download: async (value: chrome.downloads.DownloadOptions) => { options = value; return 18; },
+  } as typeof chrome.downloads), { ok: true, id: 18 });
+  assert.equal(options?.filename, 'new-jd-example.ai.txt');
+  const text = Buffer.from(options!.url.split(',')[1]!, 'base64').toString('utf8');
+  assert.ok(text.includes('Company Name: example.ai'));
+  assert.ok(text.includes('Application URL: ' + ashbySourceUrl));
+  assert.ok(text.includes('Source URL: ' + ashbySourceUrl));
 });
 
 test('download rejection and user cancellation return structured retryable outcomes', async () => {
@@ -72,6 +107,8 @@ test('download boundary rejects malformed drafts without calling the API', async
   for (const draft of [null, {}, { ...job(), sourceUrl: 'https://evil.example' }, { ...job(), warningCodes: ['unknown-code'] }]) {
     assert.equal(isJobDraft(draft), false);
   }
+  assert.equal(isJobDraft({ ...ashbyJob(), applicationType: 'easy_apply' }), false);
+  assert.equal(isJobDraft({ ...ashbyJob(), applicationType: 'invented' }), false);
   let called = false;
   assert.deepEqual(await startDownload({ ...job(), companyName: '' }, {
     download: async () => { called = true; return 1; },

@@ -1,10 +1,10 @@
 # Current Job TXT Exporter
 
-A desktop Manifest V3 extension that extracts the **currently loaded** LinkedIn job only after the user clicks Extract. Review or edit the company, title, application method, application URL, ATS, and description, then download one UTF-8 file named `new-jd-<company-name>.txt`.
+A desktop Manifest V3 extension that extracts the **currently loaded** LinkedIn or Ashby job only after the user clicks Extract. Review or edit the company, title, application method, application URL, ATS, and description, then download one UTF-8 file named `new-jd-<company-name>.txt`.
 
 The popup uses Chinese UI text. Generated TXT labels, statuses, and extraction notes are English. Company names, titles, descriptions, and user edits retain their source language.
 
-Current version: **1.0.5**. This release increments the package version because 1.0.4 was already occupied. Runtime behavior is unchanged from 1.0.4; the Firefox minimum remains 142. Automatic description-completeness warnings remain removed. Replace or reload the old temporary extension before retrying.
+Current version: **1.1.0**. This version adds hosted Ashby job extraction through independent source and DOM-adapter registries, exports a generic `Source URL` label, and replaces whitespace with hyphens in filenames. The Firefox minimum remains 142. Replace or reload the old temporary extension before retrying.
 
 ## Load the delivered builds
 
@@ -12,8 +12,8 @@ No dependency installation is needed to load the delivered files.
 
 | Browser | Unpacked directory | ZIP package |
 | --- | --- | --- |
-| Chromium | `dist/chromium/` | `dist/current-job-txt-chromium-1.0.5.zip` |
-| Firefox | `dist/firefox/` | `dist/current-job-txt-firefox-1.0.5.zip` |
+| Chromium | `dist/chromium/` | `dist/current-job-txt-chromium-1.1.0.zip` |
+| Firefox | `dist/firefox/` | `dist/current-job-txt-firefox-1.1.0.zip` |
 
 **Chromium:** Open `chrome://extensions`, enable Developer mode, click **Load unpacked**, and choose `dist/chromium/`. If using the ZIP, extract it first and choose the directory containing `manifest.json`. Pin the extension for convenient access.
 
@@ -23,18 +23,20 @@ No dependency installation is needed to load the delivered files.
 
 ## Use
 
-1. Open `https://www.linkedin.com/jobs/view/<numeric-job-id>/`. Query parameters and an omitted trailing slash are accepted. Finish loading and manually expand the description if needed.
+1. Open `https://www.linkedin.com/jobs/view/<numeric-job-id>/` or `https://jobs.ashbyhq.com/<company>/<job-id>`. Query parameters and an optional trailing slash are accepted. Finish loading and manually expand the description if needed.
 2. Open the extension and click Extract. Opening the popup alone does not inspect the tab or page.
 3. Review the editable preview and any field or application-link warnings. Fill in company name, job title, and description before downloading. If the Apply control has no readable link, enter one manually or export with the English unavailable note.
 4. Click Download. The browser saves to its default downloads directory. Open the TXT from the browser's download manager or a text editor. Each action creates a single file; repeated names use the browser's uniquify behavior.
 
 Re-extraction asks before replacing edits that have not been downloaded. Closing the popup clears the preview and edits. Once a download request has reached the background, closing the popup does not own or destroy its download data.
 
-Easy Apply uses the canonical current job URL as an application entry point. Switching to Easy Apply resets the external URL and ATS; switching back clears that entry point. URL edits are revalidated and recompute ATS. A manual ATS edit is retained for the same validated URL and cleared when that URL changes.
+On Ashby, the company name is the decoded first URL path segment, preserving its spelling, case, dots, and hyphens. The canonical job page itself is the application URL, with ATS set to Ashby and application type set to External Application. The `/application` form route and company-wide board are outside the supported entry routes. Source URLs omit query parameters and fragments.
+
+Easy Apply is available only on LinkedIn and uses the canonical current job URL as an application entry point. Switching to Easy Apply resets the external URL and ATS; switching back clears that entry point. URL edits are revalidated and recompute ATS. A manual ATS edit is retained for the same validated URL and cleared when that URL changes.
 
 ## Scope and permissions
 
-Only the exact `https://www.linkedin.com/jobs/view/<numeric-job-id>/` page shape is supported. Extraction is on demand, in the current tab's main frame, and restricted to a recognized job details container. Saved Jobs, lists, and jobs-tracker pages are rejected.
+Supported source shapes are the individual LinkedIn and hosted Ashby routes listed above. Ashby IDs are opaque strings, including UUIDs. Extraction is on demand, in the current tab's main frame, and restricted to recognized job fields. Saved Jobs, company boards, lists, and jobs-tracker pages are rejected. Identity checks compare the full canonical source URL and job ID across extraction and injection boundaries; Ashby Overview and board links also guard against stale DOM from another job or company.
 
 | Permission | Purpose |
 | --- | --- |
@@ -71,7 +73,7 @@ pnpm test:browser
 GECKODRIVER_PATH=/path/to/geckodriver pnpm test:firefox
 ```
 
-The Firefox script defaults to `/usr/bin/firefox`; set `FIREFOX_PATH` for another binary. Browser tests launch isolated profiles, serve generated synthetic markup at the supported URL, grant real activeTab access through the browser action, and exercise the unmodified popup document as an extension tab. They do not access a live LinkedIn page. They require an environment that permits browser subprocesses and local automation sockets. Downloads, screenshots, and JSON reports are written under ignored `test-results/`; temporary profiles and Firefox downloads use the OS temporary directory.
+The Firefox script defaults to `/usr/bin/firefox`; set `FIREFOX_PATH` for another binary. Browser tests launch isolated profiles, serve generated synthetic markup at the supported URL, grant real activeTab access through the browser action, and exercise the unmodified popup document as an extension tab. They do not access live LinkedIn or Ashby pages. They require an environment that permits browser subprocesses and local automation sockets. Downloads, screenshots, and JSON reports are written under ignored `test-results/`; temporary profiles and Firefox downloads use the OS temporary directory.
 
 ## Architecture
 
@@ -81,33 +83,38 @@ The Firefox script defaults to `/usr/bin/firefox`; set `FIREFOX_PATH` for anothe
 | `src/core/ats.ts` | Explicit ATS domain rules: Ashby, Greenhouse, Lever, Workday, SmartRecruiters. |
 | `src/core/draft.ts` | Required fields, latest edits, application and ATS revalidation, English export notes. |
 | `src/core/txt.ts`, `filename.ts` | English TXT formatting, UTF-8 bytes, Unicode-safe filenames. |
-| `src/extract/locators.ts`, `sdui.ts` | Centralized selectors and a saved-page-verified signed-in SDUI strategy. |
-| `src/extract/adapter.ts`, `plain-text.ts` | Scoped DOM extraction, semantic application evidence, readable paragraphs/lists. |
+| `src/core/sources/` | Pure source URL parsers, source IDs, display metadata, and supported application types. |
+| `src/extract/registry.ts`, `types.ts`, `adapter.ts` | Typed extractor registry, shared interface, dispatch, and source identity checks. |
+| `src/extract/adapters/linkedin/` | LinkedIn locators, legacy/SDUI extraction, and semantic application controls. |
+| `src/extract/adapters/ashby/` | Hosted Ashby semantic selectors, URL-derived company/application rules, and DOM identity evidence. |
+| `src/extract/plain-text.ts` | Shared paragraph/list conversion with adapter-supplied exclusions. |
 | `src/platform/extraction.ts` | Active-tab validation and job identity checks across asynchronous injection. |
 | `src/popup.ts`, `public/` | Editable preview, progress, overwrite protection, retryable errors. |
 | `src/background.ts`, `src/platform/download*.ts` | Browser-owned downloads and background resource cleanup. |
 | `manifests/`, `scripts/build.mjs` | Separate MV3 entry points and loadable packages. |
 
+To add another ATS source, add its source type in `core/sources/types.ts`, a pure URL definition in `core/sources/`, and a DOM extractor under `extract/adapters/`; register both and add source/DOM tests plus native smoke coverage. The typed registries require an extractor and a definition for each source ID. Popup and download validation consume source capabilities; they do not import DOM extraction code. ATS identification in `core/ats.ts` labels application links independently of job-page extraction support.
+
 Chromium uses a background service worker and a self-contained `data:text/plain;charset=utf-8;base64,...` URL. Firefox uses a background event page and an extension-owned Blob URL: native Firefox rejected the data URL with this permission set. The Blob lives in the background, not the popup, and is revoked on completion, interruption, or start failure. An immediate status lookup closes the completion-before-listener-tracking race. No offscreen-document or additional permission is required.
 
-TXT uses UTF-8 without a BOM, LF line endings, and an appended final newline. Markup becomes plain text with paragraphs, headings, and `- ` list markers; visible controls and unrelated cards are excluded. User edits are not translated or summarized. The filename's company component preserves Unicode, replaces forbidden/control characters, handles reserved names, and is limited to 180 UTF-8 bytes. An empty sanitized component falls back to `unknown-company-<job-id>`.
+TXT uses UTF-8 without a BOM, LF line endings, and an appended final newline. Markup becomes plain text with paragraphs, headings, and `- ` list markers; visible controls and unrelated cards are excluded. User edits are not translated or summarized. The filename's company component preserves Unicode, trims surrounding whitespace, replaces each internal whitespace run with `-`, replaces forbidden/control characters, handles reserved names, and is limited to 180 UTF-8 bytes. For example, `Marble AI` produces `new-jd-Marble-AI.txt`; the company name inside the TXT remains `Marble AI`. An empty sanitized component falls back to `unknown-company-<job-id>`.
 
 ## Verified environment and limits
 
-Verification date: **2026-10-24**. Host: Arch Linux x86-64.
+Verification date: **2026-10-29**. Host: Arch Linux x86-64.
 
 | Browser | Declared minimum | Actually tested |
 | --- | --- | --- |
 | Chromium | 120 | Chrome for Testing 156.0.8078.4, Playwright 1.64.1, headless |
-| Firefox desktop | 142.0 | Firefox 158.0.1, geckodriver 0.37.1, headless |
+| Firefox desktop | 142.0 | Firefox 159.0, geckodriver 0.37.1, headless |
 
 The minimum versions are manifest floors chosen for the APIs and Firefox data declarations; those exact versions were not run. The Firefox minimum is 142 to satisfy validation of the built-in data declaration across Firefox version tables. No gecko_android entry is declared; Android is outside the verified desktop scope.
 
-The **84** pure-function, generated-DOM, popup, and resource-lifecycle tests cover URL parsing, ATS rules, TXT formatting, Unicode filenames, English/Chinese controls, job scoping, loading, missing data, edits, and retry after download failures. Native smoke tests exercise activeTab injection and real local downloads using generated markup.
+The **111** pure-function, generated-DOM, popup, and resource-lifecycle tests cover URL parsing, ATS rules, TXT formatting, Unicode filenames, English/Chinese controls, job scoping, loading, missing data, edits, and retry after download failures. Native smoke tests exercise activeTab injection and real local downloads using generated markup.
 
-Tests generate synthetic markup in `tests/pages.mjs`. The SDUI cases cover paragraph titles, company labels, job-specific slots, four lists with 32 synthetic items, and text outside an opening expandable span. No saved website HTML, real job descriptions, or exported JD samples are retained in the repository or source archive. Temporary captures, verification outputs, build packages, and browser results are ignored by Git and excluded from source packaging.
+Tests generate synthetic markup in `tests/pages.mjs`. The SDUI cases cover paragraph titles, company labels, job-specific slots, four lists with 32 synthetic items, and text outside an opening expandable span. Hosted Ashby cases mirror the supplied DOM structure with five synthetic lists and 32 items, mismatched display-company text, and stale-link checks. The supplied `tmp/ashbyhq.html` was also checked locally: URL company `relayfi`, title `Senior Web Developer I`, 32 list items, and the final notice were retained. Saved website HTML, real job descriptions, and exported JD samples are excluded from Git and source archives; local captures may remain in ignored `tmp/`. Temporary captures, verification outputs, build packages, and browser results are ignored by Git and excluded from source packaging.
 
-**A live signed-in LinkedIn session has not been tested.** Generated test cases verify the extraction logic but cannot establish compatibility with every account-specific layout.
+**Live LinkedIn and Ashby sessions have not been tested.** Generated test cases verify the extraction logic but cannot establish compatibility with every account-specific layout.
 
 Automatic description-completeness warnings are omitted per the user's request. A “more” control alone does not prove that extracted DOM text is missing. Missing descriptions still block download until filled. The content is read as present in the DOM; it is not translated, repaired, or rewritten.
 

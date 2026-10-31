@@ -1,6 +1,7 @@
 import { parseApplicationUrl } from './application-url';
 import { identifyAts } from './ats';
 import type { JobDraft, JobExport } from './model';
+import { parseJobSource, supportsApplicationType } from './sources';
 import { exportMessages, uniqueWarnings, type WarningCode } from './warnings';
 
 const urlWarnings = new Set<WarningCode>([
@@ -9,6 +10,10 @@ const urlWarnings = new Set<WarningCode>([
 
 // Revalidation happens on every edit and again before a download.
 export function revalidateDraft(draft: JobDraft): JobDraft {
+  const source = parseJobSource(draft.sourceUrl);
+  if (!source || !supportsApplicationType(source, draft.applicationType)) {
+    throw new Error('The application type is unsupported for this job source.');
+  }
   const codes = draft.warningCodes.filter(code => !urlWarnings.has(code)
     && !['company_missing', 'title_missing', 'description_missing', 'application_unknown'].includes(code));
   if (!draft.companyName.trim()) codes.push('company_missing');

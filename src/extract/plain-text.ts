@@ -1,5 +1,3 @@
-import { locators } from './locators';
-
 export function isVisible(element: Element): boolean {
   for (let current: Element | null = element; current; current = current.parentElement) {
     if (current.hasAttribute('hidden') || current.getAttribute('aria-hidden') === 'true') return false;
@@ -10,14 +8,15 @@ export function isVisible(element: Element): boolean {
 }
 
 const blocks = new Set(['P', 'DIV', 'SECTION', 'ARTICLE', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'BLOCKQUOTE', 'UL', 'OL', 'DL', 'DT', 'DD', 'PRE']);
-const excluded = `script, style, template, noscript, svg, iframe, button, [role="button"], ${locators.excluded}`;
+const excluded = 'script, style, template, noscript, svg, iframe, button, [role="button"], aside, nav, footer';
 
-export function descriptionToText(root: Element): string {
+export function descriptionToText(root: Element, excludedSelector = ''): string {
   function read(node: Node): string {
     if (node.nodeType === 3) return (node.nodeValue || '').replace(/\s+/g, ' ');
     if (node.nodeType !== 1) return '';
     const element = node as Element;
-    if (element.matches(excluded) || !isVisible(element)) return '';
+    if (element.matches(excluded) || (excludedSelector && element.matches(excludedSelector))
+      || !isVisible(element)) return '';
     if (element.tagName === 'BR') return '\n';
     const content = [...element.childNodes].map(read).join('');
     if (element.tagName === 'LI') return `\n- ${content.trim()}\n`;

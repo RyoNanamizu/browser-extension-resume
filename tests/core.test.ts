@@ -18,7 +18,7 @@ export function job(overrides: Partial<JobDraft> = {}): JobDraft {
 }
 
 test('only explicit current-job URLs are supported and normalized', () => {
-  assert.deepEqual(parseJobSource(source + '?tracking=1'), { jobId: '123456789', sourceUrl: source });
+  assert.deepEqual(parseJobSource(source + '?tracking=1'), { siteId: 'linkedin', jobId: '123456789', sourceUrl: source });
   assert.equal(parseJobSource(source.slice(0, -1))?.sourceUrl, source);
   for (const bad of ['http://www.linkedin.com/jobs/view/1/', 'https://linkedin.com/jobs/view/1/',
     'https://www.linkedin.com/jobs/collections/saved/', 'https://www.linkedin.com/jobs-tracker/',
@@ -160,11 +160,17 @@ test('invalid extracted redirect details stay explained without leaking the redi
   assert.ok(exported.warnings.includes(exportMessages.redirect_invalid));
 });
 
-test('filenames preserve Unicode, avoid unsafe/reserved names, and fit filesystem limits', () => {
-  assert.equal(createFilename('星河科技 🚀', '123'), 'new-jd-星河科技 🚀.txt');
+test('filenames hyphenate whitespace, preserve Unicode, avoid unsafe/reserved names, and fit filesystem limits', () => {
+  assert.equal(createFilename('Marble AI', '123'), 'new-jd-Marble-AI.txt');
+  assert.equal(createFilename('  Marble   AI  ', '123'), 'new-jd-Marble-AI.txt');
+  assert.equal(createFilename('星河科技 🚀', '123'), 'new-jd-星河科技-🚀.txt');
+  assert.equal(createFilename('星河\t科技\u00a0🚀', '123'), 'new-jd-星河-科技-🚀.txt');
+  assert.equal(createFilename(' \t\u3000 ', '123'), 'new-jd-unknown-company-123.txt');
   assert.equal(createFilename('A<>:"/\\|?*B\u0000. ', '123'), 'new-jd-A---------B-.txt');
   assert.equal(createFilename('CON', '123'), 'new-jd-_CON.txt');
   assert.equal(createFilename('..', '123'), 'new-jd-unknown-company-123.txt');
+  assert.equal(createFilename('..', '11111111-2222-4333-8444-555555555555'),
+    'new-jd-unknown-company-11111111-2222-4333-8444-555555555555.txt');
   assert.ok(Buffer.byteLength(createFilename('星'.repeat(200), '123')) <= 255);
   assert.ok(!createFilename('🚀'.repeat(200), '123').includes('\ufffd'));
 });

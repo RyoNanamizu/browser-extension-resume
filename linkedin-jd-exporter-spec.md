@@ -1,12 +1,12 @@
-# LinkedIn Current Job TXT Exporter — Codex Implementation Specification
+# Current Job TXT Exporter — Codex Implementation Specification
 
-Version: 1.1
+Version: 1.2 (LinkedIn and hosted Ashby; extension release 1.1.0)
 
 ## 1. Task for Codex
 
 Implement a desktop browser extension compatible with Firefox and Chromium. Deliver source code, build configuration, meaningful tests, installation instructions, and loadable build artifacts. Inspect existing project conventions first; initialize a standalone project if the directory is empty. Make routine implementation decisions independently. Clearly distinguish verified behavior from behavior requiring a real, signed-in LinkedIn page.
 
-The user explicitly activates the extension on an already loaded LinkedIn job details page, reviews and optionally edits the extracted information, and downloads a UTF-8 TXT file named `new-jd-<company-name>.txt`.
+The user explicitly activates the extension on an already loaded LinkedIn or hosted Ashby job details page, reviews and optionally edits the extracted information, and downloads a UTF-8 TXT file named `new-jd-<company-name>.txt`.
 
 ### Language requirements
 
@@ -19,7 +19,7 @@ The user explicitly activates the extension on an already loaded LinkedIn job de
 ## 2. Scope
 
 - Support Firefox and Chromium desktop browsers.
-- Support only `https://www.linkedin.com/jobs/view/<numeric-job-id>/`, allowing query parameters and an omitted trailing slash.
+- Support `https://www.linkedin.com/jobs/view/<numeric-job-id>/` and `https://jobs.ashbyhq.com/<company>/<job-id>`, allowing query parameters and an optional trailing slash. Ashby company boards and `/application` pages are outside the supported source routes.
 - Read the page only after the user opens the extension and clicks the extract action.
 - Process only the currently loaded job in the current tab.
 - Do not process Saved Jobs or `jobs-tracker` pages.
@@ -32,7 +32,7 @@ These constraints describe technical behavior, not LinkedIn authorization. Do no
 
 ## 3. User workflow
 
-1. The user opens and loads a LinkedIn job details page and manually expands the description if needed.
+1. The user opens and loads a supported individual job details page and manually expands the description if needed.
 2. The user opens the extension popup and clicks the extract action.
 3. The extension validates the page and extracts structured information from its current DOM.
 4. The popup displays editable company name, job title, application type, application URL, ATS name, and description.
@@ -74,7 +74,7 @@ Application Type: External Application
 Application URL: https://jobs.ashbyhq.com/marble.ai/6f832eeb-08ff-4fb7-8788-420633a72960/application
 ATS: Ashby
 
-LinkedIn URL: https://www.linkedin.com/jobs/view/123456789/
+Source URL: https://www.linkedin.com/jobs/view/123456789/
 Job ID: 123456789
 Extracted At: <ISO 8601 timestamp>
 
@@ -89,18 +89,20 @@ Output rules:
 
 | Condition | Application Type | Application URL | ATS |
 | --- | --- | --- | --- |
-| Easy Apply | LinkedIn Easy Apply | Canonical current job URL | Not Applicable |
+| LinkedIn Easy Apply | LinkedIn Easy Apply | Canonical current job URL | Not Applicable |
+| Hosted Ashby job | External Application | Canonical current job URL | Ashby |
 | External application with recognized ATS | External Application | Valid extracted target URL | Recognized ATS name |
 | External application with unrecognized ATS | External Application | Valid extracted target URL | Unrecognized |
 | External application without a readable URL | External Application | Not Available | Unrecognized |
 | Application method cannot be determined | Unknown | Valid external URL if independently established, otherwise Not Available | Recognized name if established, otherwise Unrecognized |
 
 - For Easy Apply, the saved job URL is an application entry point, not an external ATS URL.
-- Normalize the LinkedIn source URL to `/jobs/view/<job-id>/` without tracking parameters.
+- Normalize source URLs without query parameters or fragments. LinkedIn uses `/jobs/view/<job-id>/`; Ashby uses `/<company>/<job-id>`.
+- For Ashby, take company name exclusively from the decoded first URL segment and use the canonical job page itself as the application URL. Preserve spelling, case, dots, and hyphens. Easy Apply is supported only for LinkedIn sources.
 - Do not translate, summarize, or rewrite the job description.
 - Do not export outer redirect parameters such as `urlhash`, `mt`, or `lipi`; do not log the full redirect URL.
 - Prefer warning codes internally and map them to English export messages and separately localized UI messages.
-- Example exported warnings: `Application URL is not available in the loaded page.` and `The job description may be incomplete. Expand it manually and extract again.`
+- Example exported warning: `Application URL is not available in the loaded page.` Automatic description-completeness warnings are omitted; missing descriptions still block export until completed.
 
 ## 5. Apply URL parsing
 
@@ -138,16 +140,16 @@ Revalidate manually edited application URLs and recompute ATS identification. Do
 ## 6. DOM extraction and incomplete data
 
 - Locate the current job details container before extracting fields. Exclude recommended jobs, sidebar cards, navigation, advertisements, and unrelated company descriptions.
-- Keep extraction strategies in a dedicated adapter module with maintainable candidate locators. Do not scatter volatile CSS class names throughout the codebase.
+- Keep pure URL/source definitions and DOM extraction adapters in separate typed registries. Each source owns its locators, company rules, and application evidence. Popup and background modules consume only pure metadata and shared models; new ATS support should be added through definitions, adapters, registration, and tests.
 - Combine semantic elements, heading structure, links, accessible names, and stable attributes where practical. Do not claim unverified selectors are verified.
 - Read only relevant job data already present in the DOM. Do not inspect private page variables, undocumented caches, or framework internals.
 - Convert description markup to plain text while preserving paragraphs and lists. List items may use `- `. Collapse excessive blank lines and exclude control labels.
-- If the complete description is already in the DOM and merely CSS-collapsed, it may be extracted. Do not invent content absent from the DOM. If an expansion control suggests incomplete content, ask the user to check completeness and expand manually. Do not claim completeness when it cannot be determined reliably.
+- If the complete description is already in the DOM and merely CSS-collapsed, it may be extracted. Do not invent content absent from the DOM. Do not issue speculative completeness warnings based solely on an expansion control. Users can expand manually and re-extract; extraction reflects the loaded DOM.
 - Detect Easy Apply from the primary application control and semantic context, supporting relevant English and Chinese page text. Do not match arbitrary page text containing Easy Apply.
 - Conflicting application evidence or ambiguous primary controls must produce an unknown state and a review warning.
 - Handle loading pages, expired listings, login walls, and missing job containers explicitly. Never use the entire page text as a fallback description.
 - Avoid fixed long waits. Ask the user to finish loading and extract again when appropriate.
-- Recheck the URL and job ID for each extraction. If the job ID changes during extraction, discard the result and ask the user to extract again. Do not mix data from jobs A and B.
+- Recheck the canonical source URL and job ID for each extraction and across asynchronous injection. Reject source-site or company changes even if job IDs match. Verify Ashby Overview and board links against the current URL to detect stale DOM.
 
 Company name, job title, and description are required before download; the user may fill missing fields manually. Unknown application type or a missing application URL may be exported with English warnings. Do not fill missing fields using recommended jobs.
 
@@ -178,7 +180,7 @@ Use text bindings or textareas for previews; do not render page content through 
 
 - Default: `new-jd-<company-name>.txt`; do not automatically append job title or job ID.
 - The prefix, extension, project filenames, and generated documentation filenames use English. Preserve the original company name, including Chinese or other Unicode characters, unless the user edits it. Do not auto-translate or transliterate company names.
-- Replace `<>:"/\\|?*` and control characters. Remove trailing dots/spaces and handle reserved names, empty results, and excessive length.
+- Trim surrounding whitespace and replace each internal whitespace run with `-` in the filename only; retain the original company name in the TXT content. Replace `<>:"/\\|?*` and control characters. Remove trailing dots/spaces and handle reserved names, empty results, and excessive length.
 - If the sanitized company name is empty, use `unknown-company-<job-id>`.
 - Limit the company-name component to avoid common filesystem limits.
 - Use the downloads API's uniquify behavior for collisions; never silently overwrite. Browser-generated suffixes such as `(1)` are acceptable.

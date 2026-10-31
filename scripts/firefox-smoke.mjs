@@ -1,4 +1,4 @@
-import { makePage } from '../tests/pages.mjs';
+import { ashbySourceUrl, makePage } from '../tests/pages.mjs';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { readFile, writeFile, mkdir, mkdtemp } from 'node:fs/promises';
@@ -70,6 +70,8 @@ try {
   const fixture = makePage('ashby');
   const sduiFixture = makePage('sdui-empty');
   const loadedSduiFixture = makePage('sdui-loaded');
+  const ashbyNavigationUrl = ashbySourceUrl + '?utm_source=fixture';
+  const ashbyFixture = makePage('ashby-hosted');
   let useLoadedSdui = false;
   ws.onmessage = event => {
     const message = JSON.parse(event.data);
@@ -84,7 +86,8 @@ try {
       if (isBlocked) {
         const fixtureBody = request.url === 'https://www.linkedin.com/jobs/view/123456789/' ? fixture
           : request.url === 'https://www.linkedin.com/jobs/view/900000001/'
-            ? (useLoadedSdui ? loadedSduiFixture : sduiFixture) : null;
+            ? (useLoadedSdui ? loadedSduiFixture : sduiFixture)
+            : request.url === ashbyNavigationUrl ? ashbyFixture : null;
         const operation = fixtureBody
           ? bidi('network.provideResponse', { request: request.request, statusCode: 200,
             headers: [{ name: 'Content-Type', value: { type: 'string', value: 'text/html; charset=utf-8' } }],
@@ -133,7 +136,7 @@ try {
     field.dispatchEvent(new Event('input', { bubbles: true }));
   }`, { company: '星河科技 🚀', title: '软件工程师', description: '原始中文说明。\n\n- 第一项\n- 第二项', 'application-url': 'https://jobs.lever.co/team/123?token=a%2Fb&plus=%2B' });
   assert.equal(await execute('return document.querySelector("#ats").value;'), 'Lever');
-  assert.equal(await execute('return document.querySelector("#filename").textContent;'), 'new-jd-星河科技 🚀.txt');
+  assert.equal(await execute('return document.querySelector("#filename").textContent;'), 'new-jd-星河科技-🚀.txt');
   await execute('document.querySelector("#reextract").click();');
   assert.equal(await execute('return !document.querySelector("#overwrite").hidden;'), true);
   await execute('document.querySelector("#cancel-reextract").click();');
@@ -147,7 +150,7 @@ try {
   await execute('document.querySelector("#download").click();');
   await until(() => execute('return document.querySelector("#status").textContent;'), text => text.includes('TXT 已下载'), 'Firefox download did not complete');
   const [first] = await downloadRecords();
-  assert.match(first.filename, /new-jd-星河科技 🚀\.txt$/);
+  assert.match(first.filename, /new-jd-星河科技-🚀\.txt$/);
   const text = await readFile(first.filename, 'utf8');
   assert.match(text, /Company Name: 星河科技 🚀\nJob Title: 软件工程师/);
   assert.ok(text.includes('ATS: Lever'));
@@ -166,10 +169,10 @@ try {
   await call('/window', undefined, 'DELETE');
   await call('/window', { handle: jobTabHandle });
   const { readdir } = await import('node:fs/promises');
-  const names = await until(() => readdir(downloads), names => names.includes('new-jd-Popup Close Test.txt'), 'Download after popup closure did not finish');
-  assert.ok(names.includes('new-jd-Popup Close Test.txt'));
+  const names = await until(() => readdir(downloads), names => names.includes('new-jd-Popup-Close-Test.txt'), 'Download after popup closure did not finish');
+  assert.ok(names.includes('new-jd-Popup-Close-Test.txt'));
   const expectedClosedText = text.replace('Company Name: 星河科技 🚀', 'Company Name: Popup Close Test');
-  const closedText = await until(() => readFile(join(downloads, 'new-jd-Popup Close Test.txt'), 'utf8').catch(() => ''), text => text === expectedClosedText, 'Closed-popup download bytes were incomplete');
+  const closedText = await until(() => readFile(join(downloads, 'new-jd-Popup-Close-Test.txt'), 'utf8').catch(() => ''), text => text === expectedClosedText, 'Closed-popup download bytes were incomplete');
   assert.equal(closedText, expectedClosedText);
   checks.push('Download retained intact UTF-8 content after the popup document was closed.');
 
@@ -219,7 +222,7 @@ try {
   assert.equal(await execute('return document.querySelectorAll("#warnings li").length;'), 0);
   await execute('document.querySelector("#download").click();');
   await until(() => execute('return document.querySelector("#status").textContent;'), text => text.includes('TXT 已下载'), 'SDUI download failed');
-  const sduiDownload = (await downloadRecords()).find(item => /new-jd-Example Company(?: \(\d+\))?\.txt$/.test(item.filename));
+  const sduiDownload = (await downloadRecords()).find(item => /new-jd-Example-Company(?: \(\d+\))?\.txt$/.test(item.filename));
   assert.equal(sduiDownload?.state, 'complete');
   const sduiText = await readFile(sduiDownload.filename, 'utf8');
   assert.match(sduiText, /Company Name: Example Company\nJob Title: Platform Engineer/);
@@ -230,12 +233,49 @@ try {
   await writeFile(join(output, 'sdui-export.txt'), sduiText);
   checks.push('The generated synthetic description was re-extracted and downloaded with over 6000 characters, all 32 items in four lists, and its final paragraph, excluding company/recommended-job content.');
   checks.push('Populated descriptions produced no speculative completeness warning in the preview or TXT, and no empty Extraction Notes section.');
+  await call('/window', { handle: jobTabHandle });
+  await call('/url', { url: ashbyNavigationUrl });
+  await chromeContext();
+  await execute('gUnifiedExtensions.togglePanel();');
+  const ashbyButton = await call('/element', { using: 'css selector', value: '#current-job-txt_local_example-BAP' });
+  await call(`/element/${ashbyButton['element-6066-11e4-a52e-4f735466cecf']}/click`, {});
+  await contentContext();
+  const ashbyWindow = await call('/window/new', { type: 'tab' });
+  await call('/window', { handle: ashbyWindow.handle });
+  await call('/url', { url: `moz-extension://${uuid}/popup.html` });
+  await chromeContext();
+  await execute('gBrowser.selectedTab = gBrowser.tabs.find(tab => tab.linkedBrowser.currentURI.spec === arguments[0]);', ashbyNavigationUrl);
+  await contentContext();
+  await execute('document.querySelector("#extract").click();');
+  await until(() => execute('return {visible: !document.querySelector("#editor").hidden, status: document.querySelector("#status").textContent};'), state => state.visible, 'Hosted Ashby extraction failed');
+  assert.equal(await execute('return document.querySelector("#company").value;'), 'example.ai');
+  assert.equal(await execute('return document.querySelector("#title").value;'), 'Synthetic Web Engineer');
+  assert.equal(await execute('return document.querySelector("#application-url").value;'), ashbySourceUrl);
+  assert.equal(await execute('return document.querySelector("#ats").value;'), 'Ashby');
+  assert.equal(await execute('return document.querySelector("#application-type option[value=easy_apply]").disabled;'), true);
+  const ashbyDescription = await execute('return document.querySelector("#description").value;');
+  assert.equal((ashbyDescription.match(/^- /gm) || []).length, 32);
+  assert.ok(ashbyDescription.endsWith('End of the synthetic Ashby description.'));
+  assert.ok(!ashbyDescription.includes('Apply for this Job'));
+  assert.ok(!ashbyDescription.includes('Recommended Job'));
+  await execute('document.querySelector("#download").click();');
+  await until(() => execute('return document.querySelector("#status").textContent;'), text => text.includes('TXT 已下载'), 'Hosted Ashby download failed');
+  const ashbyDownload = (await downloadRecords()).find(item => /new-jd-example\.ai(?: \(\d+\))?\.txt$/.test(item.filename));
+  assert.equal(ashbyDownload?.state, 'complete');
+  const ashbyText = await readFile(ashbyDownload.filename, 'utf8');
+  assert.ok(ashbyText.includes('Company Name: example.ai\nJob Title: Synthetic Web Engineer'));
+  assert.ok(ashbyText.includes('Application URL: ' + ashbySourceUrl + '\nATS: Ashby'));
+  assert.ok(ashbyText.includes('Source URL: ' + ashbySourceUrl));
+  assert.ok(ashbyText.includes(ashbyDescription));
+  assert.ok(!ashbyText.includes('LinkedIn URL:'));
+  await writeFile(join(output, 'ashby-export.txt'), ashbyText);
+  checks.push('Hosted Ashby extraction and native download retained the URL company, canonical job/application URL, and all 32 items across five lists, with Easy Apply disabled.');
   assert.deepEqual(protocolErrors, []);
   const jobRequests = requests.filter(url => url.includes('linkedin.com') || url.includes('lever.co') || url.includes('ashbyhq.com'));
-  assert.deepEqual(jobRequests, ['https://www.linkedin.com/jobs/view/123456789/', 'https://www.linkedin.com/jobs/view/900000001/', 'https://www.linkedin.com/jobs/view/900000001/']);
-  checks.push('Only three test-driver fixture navigations requested job/ATS URLs; no extension-initiated job/ATS requests.');
+  assert.deepEqual(jobRequests, ['https://www.linkedin.com/jobs/view/123456789/', 'https://www.linkedin.com/jobs/view/900000001/', 'https://www.linkedin.com/jobs/view/900000001/', ashbyNavigationUrl]);
+  checks.push('Only four test-driver fixture navigations requested job/ATS URLs; no extension-initiated job/ATS requests.');
   const report = { version, browser: session.capabilities.browserVersion, geckodriver: session.capabilities['moz:geckodriverVersion'],
-    fixture: 'Generated synthetic legacy and SDUI test markup only. No saved pages, real job descriptions, or live LinkedIn access.', checks,
+    fixture: 'Generated synthetic LinkedIn legacy/SDUI and hosted Ashby markup. No saved pages, real job descriptions, or live job-site access.', checks,
     jobRequests, protocolErrors };
   await writeFile(join(output, 'report.json'), JSON.stringify(report, null, 2) + '\n');
   console.log(JSON.stringify(report, null, 2));
