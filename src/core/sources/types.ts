@@ -1,6 +1,6 @@
 import type { ApplicationType } from '../model';
 
-export type SourceId = 'linkedin' | 'ashby';
+export type SourceId = 'linkedin' | 'ashby' | 'indeed';
 
 interface SourceBase {
   jobId: string;
@@ -9,6 +9,7 @@ interface SourceBase {
 
 export type JobSource =
   | (SourceBase & { siteId: 'linkedin' })
+  | (SourceBase & { siteId: 'indeed' })
   | (SourceBase & { siteId: 'ashby'; companySlug: string });
 
 export interface SourceDefinition {

@@ -1,12 +1,17 @@
 import type { JobExport } from './model';
+import { parseJobSource } from './sources';
 
 export function formatTxt(job: JobExport): string {
-  const applicationTypes = { easy_apply: 'LinkedIn Easy Apply', external: 'External Application', unknown: 'Unknown' };
+  const indeed = parseJobSource(job.sourceUrl)?.siteId === 'indeed';
+  const applicationTypes = { easy_apply: indeed ? 'Indeed easily apply' : 'LinkedIn Easy Apply', external: 'External Application', unknown: 'Unknown' };
+  const ats = indeed ? (job.applicationType === 'easy_apply' ? 'Indeed easily apply'
+    : job.applicationType === 'external' ? 'Unrecognized External ATS' : 'Unrecognized')
+    : job.applicationType === 'easy_apply' ? 'Not Applicable' : job.atsName || 'Unrecognized';
   const lines = [
     `Company Name: ${job.companyName}`, `Job Title: ${job.jobTitle}`, '',
     `Application Type: ${applicationTypes[job.applicationType]}`,
     `Application URL: ${job.applicationUrlStatus === 'available' && job.applicationUrl ? job.applicationUrl : 'Not Available'}`,
-    `ATS: ${job.applicationType === 'easy_apply' ? 'Not Applicable' : job.atsName || 'Unrecognized'}`, '',
+    `ATS: ${ats}`, '',
     `Source URL: ${job.sourceUrl}`, `Job ID: ${job.jobId}`, `Extracted At: ${job.extractedAt}`, '',
     'Job Description:', job.description,
   ];

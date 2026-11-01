@@ -1,6 +1,7 @@
 import type { ApplicationType } from '../model';
 import { ashbySource } from './ashby';
 import { linkedinSource } from './linkedin';
+import { indeedSource } from './indeed';
 import type { JobSource, SourceDefinition, SourceId } from './types';
 
 export type { JobSource, SourceDefinition, SourceId } from './types';
@@ -9,6 +10,7 @@ export type { JobSource, SourceDefinition, SourceId } from './types';
 export const sourceDefinitions: Record<SourceId, SourceDefinition> = {
   linkedin: linkedinSource,
   ashby: ashbySource,
+  indeed: indeedSource,
 };
 
 export function parseJobSource(raw: string): JobSource | null {

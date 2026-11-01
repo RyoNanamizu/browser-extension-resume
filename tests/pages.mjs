@@ -50,6 +50,15 @@ function ashbyHostedPage() {
 }
 
 export function makePage(name) {
+  if (name === 'indeed-external' || name === 'indeed-easy') {
+    return `<!doctype html><meta charset="utf-8"><link rel="icon" href="data:,"><link rel="canonical" href="https://ca.indeed.com/viewjob?jk=abc123def4567890">
+    <div data-testid="viewjob-main-content"><div data-testid="desktop-job-header">
+    <h5 data-testid="vj-job-title">Synthetic Indeed Engineer</h5>
+    <div data-testid="company-info-metadata"><a href="/cmp/example">Indeed Example</a><span>3.6</span><span>Remote</span></div>
+    <div data-testid="primary-apply-action"><a data-testid="viewjob-apply" href="/applystart?jk=abc123def4567890">${name === 'indeed-easy' ? 'Apply now' : 'Apply on company site'}</a></div></div>
+    <div data-testid="viewjob-job-content"><h4 data-testid="vj-job-description-heading">Full job description</h4>
+    <div class="simple-job-description-html"><style>.unused { color: red }</style><p>Synthetic Indeed description.</p><ul><li>Build tools.</li><li>Review code.</li></ul><p>Final Indeed paragraph.</p></div></div></div>`;
+  }
   if (name === 'ashby-hosted') return ashbyHostedPage();
   if (name === 'sdui-empty') return sduiPage(false);
   if (name === 'sdui-loaded') return sduiPage(true);

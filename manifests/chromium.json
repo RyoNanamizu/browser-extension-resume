@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Current Job TXT Exporter",
-  "version": "1.1.1",
-  "description": "Review and save the currently loaded LinkedIn or Ashby job as a local UTF-8 TXT file.",
+  "version": "1.2.0",
+  "description": "Review and save the currently loaded LinkedIn, Ashby, or Indeed job as a local UTF-8 TXT file.",
   "minimum_chrome_version": "120",
   "permissions": ["activeTab", "scripting", "downloads"],
   "action": { "default_title": "Current Job TXT Exporter", "default_popup": "popup.html", "default_icon": { "16": "icons/icon-16.png", "32": "icons/icon-32.png" } },

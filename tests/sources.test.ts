@@ -48,12 +48,13 @@ test('job identity includes the source site and company as well as the job ID', 
   assert.equal(isSameJobSource(initial, null), false);
 });
 
-test('source capabilities allow Easy Apply only on LinkedIn', () => {
+test('source capabilities allow Easy Apply on LinkedIn and Indeed, but not Ashby', () => {
   const ashby = parseJobSource(ashbySourceUrl)!;
   const linkedin = parseJobSource('https://www.linkedin.com/jobs/view/123/')!;
   assert.equal(supportsApplicationType(ashby, 'external'), true);
   assert.equal(supportsApplicationType(ashby, 'easy_apply'), false);
   assert.equal(supportsApplicationType(linkedin, 'easy_apply'), true);
+  assert.equal(supportsApplicationType(parseJobSource('https://ca.indeed.com/viewjob?jk=abc123')!, 'easy_apply'), true);
   assert.ok(sourceDefinitions.ashby.exampleUrl.includes('jobs.ashbyhq.com'));
 });
 

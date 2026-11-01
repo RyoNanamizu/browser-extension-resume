@@ -19,6 +19,13 @@ export function revalidateDraft(draft: JobDraft): JobDraft {
   if (!draft.companyName.trim()) codes.push('company_missing');
   if (!draft.jobTitle.trim()) codes.push('title_missing');
   if (!draft.description.trim()) codes.push('description_missing');
+  // Every Indeed application starts at the canonical job page, including external ATS jobs.
+  if (source.siteId === 'indeed') {
+    if (draft.applicationType === 'unknown') codes.push('application_unknown');
+    return { ...draft, applicationUrl: source.sourceUrl, applicationUrlStatus: 'available',
+      atsName: draft.applicationType === 'easy_apply' ? 'Indeed easily apply' : null,
+      atsOverride: undefined, warningCodes: uniqueWarnings(codes) };
+  }
   if (draft.applicationType === 'easy_apply') {
     return { ...draft, applicationUrl: draft.sourceUrl, applicationUrlStatus: 'available',
       atsName: null, warningCodes: uniqueWarnings(codes) };

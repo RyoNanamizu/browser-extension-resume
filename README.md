@@ -1,10 +1,10 @@
 # Current Job TXT Exporter
 
-A desktop Manifest V3 extension that extracts the **currently loaded** LinkedIn or Ashby job only after the user clicks Extract. Review or edit the company, title, application method, application URL, ATS, and description, then download one UTF-8 file named `new-jd-<company-name>.txt`.
+A desktop Manifest V3 extension that extracts the **currently loaded** LinkedIn, Ashby, or Indeed job only after the user clicks Extract. Review or edit the company, title, application method, application URL, ATS, and description, then download one UTF-8 file named `new-jd-<company-name>.txt`.
 
 The popup uses Chinese UI text. Generated TXT labels, statuses, and extraction notes are English. Company names, titles, descriptions, and user edits retain their source language.
 
-Current version: **1.1.1**. This version directly supports the new LinkedIn expandable-card layout and adds conservative semantic fallback for unknown layouts. Fallback extraction always shows a verification warning in the preview and exported notes; supported layouts do not receive that warning. The Firefox minimum remains 142. Replace or reload the old temporary extension before retrying.
+Current version: **1.2.0**. This version adds Canadian Indeed job pages, with the canonical job page always used as the application address. It retains LinkedIn expandable-card support and conservative semantic fallback for unknown layouts. Fallback extraction always shows a verification warning in the preview and exported notes; supported layouts do not receive that warning. The Firefox minimum remains 142. Replace or reload the old temporary extension before retrying.
 
 ## Load the delivered builds
 
@@ -12,8 +12,8 @@ No dependency installation is needed to load the delivered files.
 
 | Browser | Unpacked directory | ZIP package |
 | --- | --- | --- |
-| Chromium | `dist/chromium/` | `dist/current-job-txt-chromium-1.1.1.zip` |
-| Firefox | `dist/firefox/` | `dist/current-job-txt-firefox-1.1.1.zip` |
+| Chromium | `dist/chromium/` | `dist/current-job-txt-chromium-1.2.0.zip` |
+| Firefox | `dist/firefox/` | `dist/current-job-txt-firefox-1.2.0.zip` |
 
 **Chromium:** Open `chrome://extensions`, enable Developer mode, click **Load unpacked**, and choose `dist/chromium/`. If using the ZIP, extract it first and choose the directory containing `manifest.json`. Pin the extension for convenient access.
 
@@ -23,7 +23,7 @@ No dependency installation is needed to load the delivered files.
 
 ## Use
 
-1. Open `https://www.linkedin.com/jobs/view/<numeric-job-id>/` or `https://jobs.ashbyhq.com/<company>/<job-id>`. Query parameters and an optional trailing slash are accepted. Finish loading and manually expand the description if needed.
+1. Open `https://www.linkedin.com/jobs/view/<numeric-job-id>/`, `https://jobs.ashbyhq.com/<company>/<job-id>`, or `https://ca.indeed.com/viewjob?jk=<job-id>`. Tracking parameters are accepted; LinkedIn and Ashby also accept an optional trailing slash. Finish loading and manually expand the description if needed.
 2. Open the extension and click Extract. Opening the popup alone does not inspect the tab or page.
 3. Review the editable preview and any field or application-link warnings. Fill in company name, job title, and description before downloading. If the Apply control has no readable link, enter one manually or export with the English unavailable note.
 4. Click Download. The browser saves to its default downloads directory. Open the TXT from the browser's download manager or a text editor. Each action creates a single file; repeated names use the browser's uniquify behavior.
@@ -32,11 +32,13 @@ Re-extraction asks before replacing edits that have not been downloaded. Closing
 
 On Ashby, the company name is the decoded first URL path segment, preserving its spelling, case, dots, and hyphens. The canonical job page itself is the application URL, with ATS set to Ashby and application type set to External Application. The `/application` form route and company-wide board are outside the supported entry routes. Source URLs omit query parameters and fragments.
 
-Easy Apply is available only on LinkedIn and uses the canonical current job URL as an application entry point. Switching to Easy Apply resets the external URL and ATS; switching back clears that entry point. URL edits are revalidated and recompute ATS. A manual ATS edit is retained for the same validated URL and cleared when that URL changes.
+On Indeed, the application address is always `https://ca.indeed.com/viewjob?jk=<job-id>`, for both internal and external applications. The address and ATS fields are read-only. A primary button labeled `Apply now` produces `Indeed easily apply`; any other nonempty primary application label produces External Application with `Unrecognized External ATS`. Missing, blank, or conflicting buttons produce Unknown with a review warning. The adapter reads RN Web job fields within the main content, checks canonical and application-link job IDs, and uses identity-matched serialized job JSON only for missing fields or expiry checks. JSON fallback adds a verification warning. No application button is clicked and no `/applystart` redirect is followed. Other Indeed country domains and layouts are not yet verified.
+
+LinkedIn Easy Apply uses the canonical current job URL as an application entry point. Switching to Easy Apply resets the external URL and ATS; switching back clears that entry point. URL edits are revalidated and recompute ATS. A manual ATS edit is retained for the same validated URL and cleared when that URL changes.
 
 ## Scope and permissions
 
-Supported source shapes are the individual LinkedIn and hosted Ashby routes listed above. Ashby IDs are opaque strings, including UUIDs. Extraction is on demand, in the current tab's main frame, and restricted to recognized job fields. Saved Jobs, company boards, lists, and jobs-tracker pages are rejected. Identity checks compare the full canonical source URL and job ID across extraction and injection boundaries; Ashby Overview and board links also guard against stale DOM from another job or company.
+Supported source shapes are the individual LinkedIn, hosted Ashby, and Canadian Indeed routes listed above. Ashby IDs are opaque strings, including UUIDs. Extraction is on demand, in the current tab's main frame, and restricted to recognized job fields. Saved Jobs, company boards, lists, and jobs-tracker pages are rejected. Identity checks compare the full canonical source URL and job ID across extraction and injection boundaries; Ashby Overview and board links also guard against stale DOM from another job or company.
 
 | Permission | Purpose |
 | --- | --- |
@@ -44,7 +46,7 @@ Supported source shapes are the individual LinkedIn and hosted Ashby routes list
 | `scripting` | Inject the extraction adapter after the extract action. |
 | `downloads` | Save locally generated TXT and observe its download status. |
 
-The manifests request these three permissions only. There are no persistent host permissions, content scripts, tab-reading permission, cookies, webRequest, clipboard access, or ATS permissions. The extension does not click controls, follow redirects, open tabs, enumerate jobs, apply, call LinkedIn/ATS APIs, read private page state, or initiate job-data requests. Runtime code is bundled locally; extension CSP blocks connections.
+The manifests request these three permissions only. There are no persistent host permissions, content scripts, tab-reading permission, cookies, webRequest, clipboard access, or ATS permissions. The extension does not click controls, follow redirects, open tabs, enumerate jobs, apply, call LinkedIn/ATS APIs, read unrelated account fields from embedded page data, or initiate job-data requests. Runtime code is bundled locally; extension CSP blocks connections.
 
 Processing stays in memory. There is no backend, AI service, telemetry, saved history, raw HTML persistence, or runtime CDN. The downloaded file and the browser's normal download record remain under the user's control. Local processing does not establish LinkedIn authorization or guarantee compliance with platform terms or account safety.
 
@@ -73,7 +75,7 @@ pnpm test:browser
 GECKODRIVER_PATH=/path/to/geckodriver pnpm test:firefox
 ```
 
-The Firefox script defaults to `/usr/bin/firefox`; set `FIREFOX_PATH` for another binary. Browser tests launch isolated profiles, serve generated synthetic markup at the supported URL, grant real activeTab access through the browser action, and exercise the unmodified popup document as an extension tab. They do not access live LinkedIn or Ashby pages. They require an environment that permits browser subprocesses and local automation sockets. Downloads, screenshots, and JSON reports are written under ignored `test-results/`; temporary profiles and Firefox downloads use the OS temporary directory.
+The Firefox script defaults to `/usr/bin/firefox`; set `FIREFOX_PATH` for another binary. Browser tests launch isolated profiles, serve generated synthetic markup at the supported URL, grant real activeTab access through the browser action, and exercise the unmodified popup document as an extension tab. The Chromium smoke test also covers Indeed external and easily apply exports. They do not access live job-site pages. They require an environment that permits browser subprocesses and local automation sockets. Downloads, screenshots, and JSON reports are written under ignored `test-results/`; temporary profiles and Firefox downloads use the OS temporary directory.
 
 ## Architecture
 
@@ -86,6 +88,7 @@ The Firefox script defaults to `/usr/bin/firefox`; set `FIREFOX_PATH` for anothe
 | `src/core/sources/` | Pure source URL parsers, source IDs, display metadata, and supported application types. |
 | `src/extract/registry.ts`, `types.ts`, `adapter.ts` | Typed extractor registry, shared interface, dispatch, and source identity checks. |
 | `src/extract/adapters/linkedin/` | LinkedIn locators, legacy/SDUI extraction, and semantic application controls. |
+| `src/extract/adapters/indeed/` | Indeed RN Web fields, serialized job-data fallback, identity checks, and application classification. |
 | `src/extract/adapters/ashby/` | Hosted Ashby semantic selectors, URL-derived company/application rules, and DOM identity evidence. |
 | `src/extract/plain-text.ts` | Shared paragraph/list conversion with adapter-supplied exclusions. |
 | `src/platform/extraction.ts` | Active-tab validation and job identity checks across asynchronous injection. |

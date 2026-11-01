@@ -63,7 +63,9 @@ function setBusy(value: boolean) {
 function render() {
   if (!draft) return;
   const source = parseJobSource(draft.sourceUrl);
+  const indeed = source?.siteId === 'indeed';
   for (const option of fields.applicationType.options) {
+    if (option.value === 'easy_apply') option.textContent = indeed ? 'Indeed easily apply' : 'LinkedIn 轻松申请';
     const supported = !!source && supportsApplicationType(source, option.value as ApplicationType);
     option.hidden = !supported;
     option.disabled = !supported;
@@ -72,9 +74,10 @@ function render() {
   editor.hidden = false;
   extractButton.hidden = true;
   reextractButton.hidden = false;
-  fields.applicationUrl.readOnly = draft.applicationType === 'easy_apply';
-  fields.ats.readOnly = draft.applicationType === 'easy_apply' || draft.applicationUrlStatus !== 'available';
-  fields.ats.placeholder = draft.applicationType === 'easy_apply' ? '不适用'
+  fields.applicationUrl.readOnly = indeed || draft.applicationType === 'easy_apply';
+  fields.ats.readOnly = indeed || draft.applicationType === 'easy_apply' || draft.applicationUrlStatus !== 'available';
+  fields.ats.placeholder = indeed ? (draft.applicationType === 'external' ? '未识别外部 ATS' : '未知')
+    : draft.applicationType === 'easy_apply' ? '不适用'
     : draft.applicationUrlStatus !== 'available' ? '填写有效申请链接后可编辑' : '未识别，可手动填写';
   fields.applicationUrl.value = draft.applicationUrl || '';
   fields.ats.value = draft.atsName || '';
@@ -111,7 +114,7 @@ async function extract() {
       setStatus(errors[result.error], true);
       return;
     }
-    draft = result.job;
+    draft = revalidateDraft(result.job);
     dirty = false;
     downloadId = null;
     fields.company.value = draft.companyName;

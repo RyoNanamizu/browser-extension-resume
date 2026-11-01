@@ -34,12 +34,15 @@ try {
   const sduiHtml = makePage('sdui-empty');
   const loadedSduiHtml = makePage('sdui-loaded');
   let useLoadedSdui = false;
+  let indeedEasy = false;
   const requests = [];
   await context.route('https://www.linkedin.com/**', route => route.fulfill({ contentType: 'text/html; charset=utf-8',
     body: new URL(route.request().url()).pathname === '/jobs/view/900000001/'
       ? (useLoadedSdui ? loadedSduiHtml : sduiHtml) : fixtureHtml }));
   await context.route('https://jobs.ashbyhq.com/**', route => route.fulfill({ contentType: 'text/html; charset=utf-8',
     body: makePage('ashby-hosted') }));
+  await context.route('https://ca.indeed.com/**', route => route.fulfill({ contentType: 'text/html; charset=utf-8',
+    body: makePage(indeedEasy ? 'indeed-easy' : 'indeed-external') }));
   context.on('request', request => {
     if (/^https?:/.test(request.url())) requests.push(request.url());
   });
@@ -187,11 +190,41 @@ try {
   assert.ok(!ashbyText.includes('LinkedIn URL:'));
   await writeFile(join(output, 'ashby-export.txt'), ashbyText);
   checks.push('Hosted Ashby extraction and native download retained the URL company, canonical job/application URL, and all 32 items across five lists, with Easy Apply disabled.');
-  assert.deepEqual(requests, ['https://www.linkedin.com/jobs/view/123456789/', 'https://www.linkedin.com/jobs/view/900000001/', 'https://www.linkedin.com/jobs/view/900000001/', ashbyNavigationUrl]);
+  const indeedUrl = 'https://ca.indeed.com/viewjob?jk=abc123def4567890';
+  for (const easy of [false, true]) {
+    indeedEasy = easy;
+    await job.goto(indeedUrl);
+    await browserCdp.send('Extensions.triggerAction', { id, targetId: targetInfo.targetId });
+    const indeedPopup = await context.newPage();
+    await indeedPopup.goto(`chrome-extension://${id}/popup.html`);
+    await worker.evaluate(tabId => chrome.tabs.update(tabId, { active: true }), jobTab.id);
+    await indeedPopup.locator('#extract').click();
+    await indeedPopup.locator('#editor').waitFor({ state: 'visible' });
+    assert.equal(await indeedPopup.locator('#company').inputValue(), 'Indeed Example');
+    assert.equal(await indeedPopup.locator('#application-url').inputValue(), indeedUrl);
+    assert.equal(await indeedPopup.locator('#application-url').evaluate(input => input.readOnly), true);
+    assert.equal(await indeedPopup.locator('#ats').evaluate(input => input.readOnly), true);
+    assert.equal(await indeedPopup.locator('#application-type').inputValue(), easy ? 'easy_apply' : 'external');
+    assert.equal(await indeedPopup.locator('#ats').inputValue(), easy ? 'Indeed easily apply' : '');
+    if (!easy) assert.equal(await indeedPopup.locator('#ats').getAttribute('placeholder'), '未识别外部 ATS');
+    const before = new Set((await worker.evaluate(() => chrome.downloads.search({}))).map(item => item.id));
+    await indeedPopup.locator('#download').click();
+    await indeedPopup.waitForFunction(() => document.querySelector('#status').textContent.includes('TXT 已下载'));
+    const download = (await worker.evaluate(() => chrome.downloads.search({}))).find(item => !before.has(item.id));
+    assert.equal(download?.state, 'complete');
+    const text = await readFile(download.filename, 'utf8');
+    assert.ok(text.includes('Application URL: ' + indeedUrl));
+    assert.ok(text.includes('ATS: ' + (easy ? 'Indeed easily apply' : 'Unrecognized External ATS')));
+    assert.ok(text.includes('Final Indeed paragraph.'));
+    assert.ok(!text.includes('/applystart') && !text.includes('Extraction Notes:'));
+    await indeedPopup.close();
+  }
+  checks.push('Indeed external and Apply now fixtures extracted and downloaded with fixed canonical URLs, correct ATS labels, read-only URL/ATS fields, and complete descriptions.');
+  assert.deepEqual(requests, ['https://www.linkedin.com/jobs/view/123456789/', 'https://www.linkedin.com/jobs/view/900000001/', 'https://www.linkedin.com/jobs/view/900000001/', ashbyNavigationUrl, indeedUrl, indeedUrl]);
   assert.deepEqual(errors, []);
-  checks.push('Only four test-driver fixture navigations requested job/ATS URLs; no extension-initiated requests or popup runtime errors.');
+  checks.push('Only six test-driver fixture navigations requested job/ATS URLs; no extension-initiated requests or popup runtime errors.');
   const report = { version, browser: context.browser()?.version(), profile,
-    fixture: 'Generated synthetic LinkedIn legacy/SDUI and hosted Ashby markup. No saved pages, real job descriptions, or live job-site access.', checks, errors };
+    fixture: 'Generated synthetic LinkedIn legacy/SDUI, hosted Ashby, and Indeed RN Web markup. No saved pages, real job descriptions, or live job-site access.', checks, errors };
   await writeFile(join(output, 'report.json'), JSON.stringify(report, null, 2) + '\n');
   console.log(JSON.stringify(report, null, 2));
 } finally { await context.close(); }
