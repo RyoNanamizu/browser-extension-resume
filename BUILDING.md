@@ -2,6 +2,20 @@
 
 This source archive matches Current Job TXT Exporter 1.2.0. It contains the TypeScript sources, original popup HTML/CSS, manifests, tests, build scripts, dependency lockfile, and documentation.
 
+## Release scope
+
+“Release” or “publish” (发布) in this project means local packaging only: generate the Chromium and Firefox extension ZIPs, the source ZIP, and their SHA-256 checksums, then verify the outputs. It does not include pushing code or tags, creating a GitHub Release, uploading assets, or submitting to extension stores. Perform those remote actions only when explicitly requested; local packaging requires no GitHub login.
+
+With dependencies installed, prepare a release using:
+
+```sh
+pnpm check
+pnpm lint:firefox
+pnpm package:source
+```
+
+The plugin packages and checksums are written to `dist/`; the source archive and its checksum are written to `releases/`.
+
 ## Environment
 
 The release was built on Arch Linux x86-64 using Node.js 26.12.1 and pnpm 12.15.0. Use these versions to reproduce the verified build. The project requires Node.js 22.15 or later; other operating systems and CPU architectures have not been verified.

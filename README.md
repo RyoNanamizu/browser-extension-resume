@@ -52,6 +52,8 @@ Processing stays in memory. There is no backend, AI service, telemetry, saved hi
 
 ## Install dependencies, test, and build
 
+In this project, a request to “release” or “publish” (发布) means generating the local Chromium and Firefox extension packages and source archive, together with their checksums. It does not authorize pushing code or tags, creating a GitHub Release, uploading assets, or submitting to extension stores. Those remote actions require an explicit request. No GitHub login is needed for local packaging. See [BUILDING.md](BUILDING.md) for the release commands.
+
 Use Node.js **22.15 or newer** and pnpm **12.15.0**. Tooling was actually run with Node.js 26.12.1 and pnpm 12.15.0. The committed `pnpm-lock.yaml` fixes dependency resolutions. The workspace permits esbuild's installation script and explicitly declines the unused legacy spawn-sync build script.
 
 ```sh
