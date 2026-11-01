@@ -1,4 +1,5 @@
 export const exportMessages = {
+  fallback_extraction: 'This page layout is not directly supported. Compatibility extraction was used; carefully verify the job title, company, full description, and application URL.',
   company_missing: 'Company name was not found in the loaded job details.',
   title_missing: 'Job title was not found in the loaded job details.',
   description_missing: 'Job description was not found in the loaded job details.',
@@ -13,6 +14,7 @@ export const exportMessages = {
 export type WarningCode = keyof typeof exportMessages;
 
 export const uiMessages: Record<WarningCode, string> = {
+  fallback_extraction: '当前页面布局尚未直接适配，已使用兼容识别。请仔细核对职位名称、公司、完整职位描述及申请链接。',
   company_missing: '未找到公司名称，请手动补充。',
   title_missing: '未找到职位名称，请手动补充。',
   description_missing: '当前页面中没有可读的职位描述。请滚动到描述区域并手动展开后重新提取，或手动补充。',

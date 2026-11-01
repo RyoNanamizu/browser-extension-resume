@@ -4,7 +4,7 @@ A desktop Manifest V3 extension that extracts the **currently loaded** LinkedIn 
 
 The popup uses Chinese UI text. Generated TXT labels, statuses, and extraction notes are English. Company names, titles, descriptions, and user edits retain their source language.
 
-Current version: **1.1.0**. This version adds hosted Ashby job extraction through independent source and DOM-adapter registries, exports a generic `Source URL` label, and replaces whitespace with hyphens in filenames. The Firefox minimum remains 142. Replace or reload the old temporary extension before retrying.
+Current version: **1.1.1**. This version directly supports the new LinkedIn expandable-card layout and adds conservative semantic fallback for unknown layouts. Fallback extraction always shows a verification warning in the preview and exported notes; supported layouts do not receive that warning. The Firefox minimum remains 142. Replace or reload the old temporary extension before retrying.
 
 ## Load the delivered builds
 
@@ -12,8 +12,8 @@ No dependency installation is needed to load the delivered files.
 
 | Browser | Unpacked directory | ZIP package |
 | --- | --- | --- |
-| Chromium | `dist/chromium/` | `dist/current-job-txt-chromium-1.1.0.zip` |
-| Firefox | `dist/firefox/` | `dist/current-job-txt-firefox-1.1.0.zip` |
+| Chromium | `dist/chromium/` | `dist/current-job-txt-chromium-1.1.1.zip` |
+| Firefox | `dist/firefox/` | `dist/current-job-txt-firefox-1.1.1.zip` |
 
 **Chromium:** Open `chrome://extensions`, enable Developer mode, click **Load unpacked**, and choose `dist/chromium/`. If using the ZIP, extract it first and choose the directory containing `manifest.json`. Pin the extension for convenient access.
 
@@ -101,20 +101,22 @@ TXT uses UTF-8 without a BOM, LF line endings, and an appended final newline. Ma
 
 ## Verified environment and limits
 
-Verification date: **2026-10-29**. Host: Arch Linux x86-64.
+Verification date: **2026-10-31**. Host: Arch Linux x86-64.
 
 | Browser | Declared minimum | Actually tested |
 | --- | --- | --- |
 | Chromium | 120 | Chrome for Testing 156.0.8078.4, Playwright 1.64.1, headless |
-| Firefox desktop | 142.0 | Firefox 159.0, geckodriver 0.37.1, headless |
+| Firefox desktop | 142.0 | Firefox 159.0, geckodriver 0.37.1, headless (1.1.1) |
 
 The minimum versions are manifest floors chosen for the APIs and Firefox data declarations; those exact versions were not run. The Firefox minimum is 142 to satisfy validation of the built-in data declaration across Firefox version tables. No gecko_android entry is declared; Android is outside the verified desktop scope.
 
-The **111** pure-function, generated-DOM, popup, and resource-lifecycle tests cover URL parsing, ATS rules, TXT formatting, Unicode filenames, English/Chinese controls, job scoping, loading, missing data, edits, and retry after download failures. Native smoke tests exercise activeTab injection and real local downloads using generated markup.
+The **124** pure-function, generated-DOM, popup, and resource-lifecycle tests cover URL parsing, ATS rules, TXT formatting, Unicode filenames, English/Chinese controls, job scoping, loading, missing data, edits, and retry after download failures. Native smoke tests exercise activeTab injection and real local downloads using generated markup.
 
 Tests generate synthetic markup in `tests/pages.mjs`. The SDUI cases cover paragraph titles, company labels, job-specific slots, four lists with 32 synthetic items, and text outside an opening expandable span. Hosted Ashby cases mirror the supplied DOM structure with five synthetic lists and 32 items, mismatched display-company text, and stale-link checks. The supplied `tmp/ashbyhq.html` was also checked locally: URL company `relayfi`, title `Senior Web Developer I`, 32 list items, and the final notice were retained. Saved website HTML, real job descriptions, and exported JD samples are excluded from Git and source archives; local captures may remain in ignored `tmp/`. Temporary captures, verification outputs, build packages, and browser results are ignored by Git and excluded from source packaging.
 
 **Live LinkedIn and Ashby sessions have not been tested.** Generated test cases verify the extraction logic but cannot establish compatibility with every account-specific layout.
+
+LinkedIn extraction first tries supported legacy, named-slot SDUI, and expandable-card SDUI layouts. The expandable-card layout is directly supported even when the description lacks a named job slot. When supported layouts do not match, a conservative semantic fallback requires a unique description, title, and company in the same content area. Fallback results always display a compatibility warning asking the user to verify all fields, and retain that warning after edits and in the exported Extraction Notes. Conflicting job identities and ambiguous candidates still block extraction. New supplied layouts should gain a dedicated direct recognition rule and regression coverage; they should not remain classified as fallback.
 
 Automatic description-completeness warnings are omitted per the user's request. A “more” control alone does not prove that extracted DOM text is missing. Missing descriptions still block download until filled. The content is read as present in the DOM; it is not translated, repaired, or rewritten.
 

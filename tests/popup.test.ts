@@ -176,3 +176,24 @@ test('failed re-extraction removes the old preview and allows a fresh attempt', 
   assert.equal(ui.get('editor').hidden, false);
   ui.page.window.close();
 });
+
+test('compatibility warning stays visible after editing and is sent with the download', async () => {
+  const ui = popup({ ...job(), warningCodes: ['fallback_extraction'] });
+  ui.get('extract').click(); await settle();
+  assert.match(ui.get('warnings').textContent!, /尚未直接适配.*仔细核对/);
+  ui.input('title', 'Reviewed Engineer');
+  assert.match(ui.get('warnings').textContent!, /尚未直接适配/);
+  ui.get('download').click(); await settle();
+  assert.ok(ui.calls.messages[0]!.job.warningCodes.includes('fallback_extraction'));
+  ui.page.window.close();
+});
+
+test('re-extracting a directly supported layout clears an earlier compatibility warning', async () => {
+  const ui = popup({ ...job(), warningCodes: ['fallback_extraction'] });
+  ui.get('extract').click(); await settle();
+  assert.match(ui.get('warnings').textContent!, /尚未直接适配/);
+  ui.state.job = job();
+  ui.get('reextract').click(); await settle();
+  assert.ok(!ui.get('warnings').textContent!.includes('尚未直接适配'));
+  ui.page.window.close();
+});

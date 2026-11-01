@@ -7,6 +7,8 @@ import { locators } from './locators';
 import { descriptionToText, isVisible } from '../../plain-text';
 import { isApplicationControl, isEasyApplyControl, isExternalApplyControl } from './control-semantics';
 import { findSduiDetails } from './sdui';
+import { findSemanticDetails } from './semantic';
+import type { LinkedInStrategy } from './details';
 import type { JobExtractor } from '../../types';
 
 function relevant(element: Element): boolean {
@@ -96,26 +98,36 @@ export const extractLinkedInJob: JobExtractor = ({ document, source: before, now
 
   const sdui = findSduiDetails(document, before.jobId, relevant);
   if (sdui && !sdui.ok) return sdui;
-  const details = sdui?.ok ? sdui.details : null;
+  let details = sdui?.ok ? sdui.details : null;
   let container: Element | null = details?.root || null;
   for (const selector of details ? [] : locators.containers) {
+    // A plain main element is a semantic fallback, not a supported layout.
+    if (selector === 'main') continue;
     let candidates = [...document.querySelectorAll(selector)].filter(element => relevant(element)
       && (first(element, locators.title) || findDescription(element)));
-    if (selector === 'main') candidates = candidates.filter(element => first(element, locators.title) && findDescription(element));
     candidates = candidates.filter(element => !candidates.some(other => other !== element && element.contains(other)));
     if (candidates.length > 1) return { ok: false, error: 'ambiguous_container' };
     if (candidates.length === 1) { container = candidates[0]!; break; }
   }
   if (!container) {
-    return { ok: false, error: document.querySelector(locators.loading) || document.readyState === 'loading'
+    const semantic = findSemanticDetails(document, relevant);
+    if (semantic && !semantic.ok) return semantic;
+    if (semantic?.ok) { details = semantic.details; container = details.root; }
+  }
+  if (!container) {
+    return { ok: false, error: document.readyState === 'loading'
       ? 'page_loading' : 'missing_container' };
   }
 
-  const identityScope = details?.primaryRegion || (details ? details.description : container);
+  const identityScope = container;
   const declaredIds = [identityScope, ...identityScope.querySelectorAll('[data-job-id]')]
     .filter(element => relevant(element) && element.hasAttribute('data-job-id'))
     .map(element => element.getAttribute('data-job-id'));
   if (declaredIds.some(id => id !== before.jobId)) return { ok: false, error: 'job_changed' };
+  const slotIds = [...identityScope.querySelectorAll('[id^="JobDetails"], [componentkey^="JobDetails"]')]
+    .filter(relevant).flatMap(element => [element.id, element.getAttribute('componentkey')])
+    .flatMap(value => /^JobDetails(?:_|PeopleWhoCanHelpSlot_)[A-Za-z_]*?(\d+)$/.exec(value || '')?.[1] || []);
+  if (slotIds.some(id => id !== before.jobId)) return { ok: false, error: 'job_changed' };
   const titleElement = details ? details.title : first(container, locators.title);
   const titleAnchor = titleElement?.matches('a[href]') ? titleElement : titleElement?.querySelector('a[href]');
   if (titleAnchor) {
@@ -123,7 +135,9 @@ export const extractLinkedInJob: JobExtractor = ({ document, source: before, now
     if (titleSource && !isSameJobSource(titleSource, before)) return { ok: false, error: 'job_changed' };
   }
   const descriptionElement = details ? details.description : findDescription(container);
+  const strategy: LinkedInStrategy = details?.strategy || 'legacy';
   const warnings: WarningCode[] = [];
+  if (strategy === 'semantic-fallback') warnings.push('fallback_extraction');
   const companyName = text(details ? details.company : first(container, locators.company));
   const jobTitle = text(titleElement);
   const description = descriptionElement ? descriptionToText(descriptionElement, locators.excluded) : '';

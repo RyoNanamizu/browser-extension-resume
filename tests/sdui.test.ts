@@ -6,6 +6,9 @@ import { extractCurrentJob } from '../src/extract/adapter';
 import { toJobExport } from '../src/core/draft';
 import { formatTxt } from '../src/core/txt';
 import type { ExtractionResult, JobDraft } from '../src/core/model';
+import { findSduiDetails } from '../src/extract/adapters/linkedin/sdui';
+import { isVisible } from '../src/extract/plain-text';
+import { locators } from '../src/extract/adapters/linkedin/locators';
 
 const source = 'https://www.linkedin.com/jobs/view/900000001/';
 const fixture = makePage('sdui-empty');
@@ -196,5 +199,57 @@ test('SDUI expansion controls outside the current description do not add a warni
   document.getElementById('JobDetails_AboutTheCompany_900000001')!.insertAdjacentHTML('beforeend', '<button>Show more</button>');
   const result = job(extract(dom));
   assert.deepEqual(result.warningCodes, []);
+  dom.window.close();
+});
+
+function unmarkedFixture() {
+  return loadedFixture.replace(
+    'id="JobDetails_AboutTheJob_900000001" componentkey="JobDetails_AboutTheJob_900000001"',
+    'componentkey="regenerated-description-uuid"',
+  ).replace('<section>', '<section><div id="JobDetails_ManageJobBanner_900000001" componentkey="JobDetails_ManageJobBanner_900000001"></div>');
+}
+
+test('the supplied expandable-card SDUI layout directly matches without a fallback warning', async () => {
+  const dom = await page(unmarkedFixture());
+  const match = findSduiDetails(dom.window.document, '900000001',
+    element => !element.closest(locators.excluded) && isVisible(element));
+  assert.ok(match?.ok);
+  if (match?.ok) assert.equal(match.details.strategy, 'sdui-expandable-card');
+  const result = job(extract(dom));
+  assert.equal(result.jobTitle, 'Platform Engineer');
+  assert.equal(result.companyName, 'Example Company');
+  assert.equal(result.applicationType, 'external');
+  assert.equal(result.applicationUrl, 'https://careers.example.org/jobs/900000001?source=example');
+  assert.ok(result.description.includes('End of the synthetic description.'));
+  assert.equal((result.description.match(/- Synthetic responsibility /g) || []).length, 32);
+  assert.ok(!result.description.includes('Unrelated company overview'));
+  assert.ok(!result.description.includes('Recommended Engineer'));
+  assert.deepEqual(result.warningCodes, []);
+  dom.window.close();
+});
+
+test('unmarked SDUI description rejects stale or inconsistent supporting job slots', async () => {
+  for (const html of [unmarkedFixture().replaceAll('900000001', '999'),
+    unmarkedFixture().replace('componentkey="JobDetails_ManageJobBanner_900000001"', 'componentkey="JobDetails_ManageJobBanner_999"')]) {
+    const dom = await page(html);
+    assert.deepEqual(extract(dom), { ok: false, error: 'job_changed' });
+    dom.window.close();
+  }
+});
+
+test('multiple unmarked SDUI description cards are ambiguous', async () => {
+  const dom = await page(unmarkedFixture());
+  const card = dom.window.document.querySelector('[componentkey="regenerated-description-uuid"]')!;
+  card.after(card.cloneNode(true));
+  assert.deepEqual(extract(dom), { ok: false, error: 'ambiguous_container' });
+  dom.window.close();
+});
+
+test('unmarked SDUI lookup cannot use an expandable company overview as a description', async () => {
+  const dom = await page(unmarkedFixture());
+  dom.window.document.querySelector('[componentkey="regenerated-description-uuid"]')!.remove();
+  dom.window.document.getElementById('JobDetails_AboutTheCompany_900000001')!.innerHTML =
+    '<h2>About the job</h2><p data-testid="expandable-text-box">Unrelated company overview.</p>';
+  assert.equal(extract(dom).ok, false);
   dom.window.close();
 });

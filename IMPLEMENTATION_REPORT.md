@@ -1,12 +1,12 @@
 # Implementation and Verification Report
 
-Version: **1.1.0**
+Version: **1.1.1**
 
-Verification date: **2026-10-29**
+Verification date: **2026-10-31**
 
 ## Delivery
 
-The desktop Firefox and Chromium extension provides user-triggered extraction of one loaded LinkedIn or Ashby job, an editable preview, and a local UTF-8 TXT download. Both builds use only activeTab, scripting, and downloads. Firefox requires version 142 or later and declares no data collection. Version 1.1.0 adds hosted Ashby extraction, typed source/DOM registries, full-source identity checks, a generic Source URL export label, and hyphenated filename whitespace.
+The desktop Firefox and Chromium extension provides user-triggered extraction of one loaded LinkedIn or Ashby job, an editable preview, and a local UTF-8 TXT download. Both builds use only activeTab, scripting, and downloads. Firefox requires version 142 or later and declares no data collection. Version 1.1.1 directly supports the new LinkedIn expandable-card layout, adds conservative semantic fallback for unknown layouts, and preserves the mandatory fallback verification warning through preview edits and TXT export.
 
 | Deliverable | Location |
 | --- | --- |
@@ -15,15 +15,15 @@ The desktop Firefox and Chromium extension provides user-triggered extraction of
 | Automated tests with generated synthetic markup | tests/ |
 | Reproducible build instructions | [BUILDING.md](BUILDING.md) |
 | Firefox submission notes | [FIREFOX_SUBMISSION.md](FIREFOX_SUBMISSION.md) |
-| Firefox package | dist/current-job-txt-firefox-1.1.0.zip |
-| Chromium package | dist/current-job-txt-chromium-1.1.0.zip |
-| Source archive | releases/current-job-txt-source-1.1.0.zip |
+| Firefox package | dist/current-job-txt-firefox-1.1.1.zip |
+| Chromium package | dist/current-job-txt-chromium-1.1.1.zip |
+| Source archive | releases/current-job-txt-source-1.1.1.zip |
 
 No upload, signing, or publication has been performed.
 
 ## Repository cleanup
 
-Committed tests generate synthetic LinkedIn legacy/SDUI and hosted Ashby markup in tests/pages.mjs. Saved website pages, real JD text, browser outputs, and build artifacts are excluded from Git and source archives. The supplied local tmp/ashbyhq.html remains ignored and was used only for local DOM verification.
+Committed tests generate synthetic LinkedIn legacy/SDUI and hosted Ashby markup in tests/pages.mjs. Saved website pages, real JD text, browser outputs, and build artifacts are excluded from Git and source archives. The supplied local tmp/ashbyhq.html and tmp/linkedin.html remain ignored and were used only for local DOM verification.
 
 Git ignores temporary captures, browser results, verification outputs, dist/, and releases/. The source packager uses an allowlist of code, tests, build configuration, and documentation. It excludes saved pages, exported samples, reports, dependencies, and browser/build artifacts. Required tests remain runnable from the source archive.
 
@@ -39,11 +39,14 @@ The application parser validates direct URLs and one supported LinkedIn safety r
 
 Environment: Arch Linux x86-64, Node.js 26.12.1, pnpm 12.15.0, web-ext 10.8.0, addons-linter 10.14.0.
 
-- Type checking and 111 automated tests pass with generated synthetic markup.
+- Type checking and 124 automated tests pass with generated synthetic markup.
 - Both loadable builds and ZIPs pass package, manifest, permission, syntax, and checksum checks.
 - Firefox validation reports zero errors, warnings, and notices.
-- Native headless Firefox 159.0 and Chrome for Testing 156.0.8078.4 workflows verify activeTab extraction, edits, UTF-8 downloads, filename collisions, long synthetic descriptions, all 32 synthetic LinkedIn list items, hosted Ashby extraction and downloads with five lists and 32 items, and download integrity after closing the popup document. Both tests observed only the four fixture navigations and no extension-initiated job/ATS requests.
-- The source ZIP is checked for excluded data and rebuilt in a fresh directory. Its outputs match the delivered browser packages byte-for-byte.
+- Version 1.1.1 Chromium native smoke verification passed on Chrome for Testing 156.0.8078.4, covering extraction, edits, UTF-8 downloads, collisions, popup closure, long descriptions, and hosted Ashby. Version 1.1.1 Firefox native smoke verification also passed on Firefox 159.0 with geckodriver 0.37.1, covering the same extraction and download workflows. Its static validator passed with zero errors, warnings, and notices.
+- Prior-version (1.1.0) native headless Firefox 159.0 and Chrome for Testing 156.0.8078.4 workflows verify activeTab extraction, edits, UTF-8 downloads, filename collisions, long synthetic descriptions, all 32 synthetic LinkedIn list items, hosted Ashby extraction and downloads with five lists and 32 items, and download integrity after closing the popup document. Both tests observed only the four fixture navigations and no extension-initiated job/ATS requests.
+- The source ZIP is checked for excluded data and rebuilt in a fresh directory using the existing installed dependencies. Its outputs match the delivered browser packages byte-for-byte.
+
+Local verification of the supplied LinkedIn HTML directly matched sdui-expandable-card: KEV Group, Staff Frontend Engineer, 9,180 description characters, an external application URL, and no warnings. Page scripts and external resources were not loaded.
 
 Local verification of the supplied Ashby HTML produced company relayfi, title Senior Web Developer I, the canonical job URL as application entry, 9,942 description characters, all 32 list items, and the final notice, without controls/footer text or warnings. The capture was parsed without running page scripts or loading resources.
 
