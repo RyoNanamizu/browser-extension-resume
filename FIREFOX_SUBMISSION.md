@@ -1,14 +1,14 @@
-# Firefox submission notes — 1.2.0
+# Firefox submission notes — 1.2.1
 
-Prepared on 2026-11-01. These are submission materials; no upload, signing, or publication has been performed.
+Prepared on 2026-11-09. These are submission materials; no upload, signing, or publication has been performed.
 
-The AMO source-code upload is `releases/current-job-txt-source-1.2.0.zip`, generated with `pnpm package:source`. Upload it in the Source code field after choosing Yes for generated/bundled code. The runnable add-on upload remains `dist/current-job-txt-firefox-1.2.0.zip`. Build instructions are included in [BUILDING.md](BUILDING.md).
+The AMO source-code upload is `releases/current-job-txt-source-1.2.1.zip`, generated with `pnpm package:source`. Upload it in the Source code field after choosing Yes for generated/bundled code. The runnable add-on upload remains `dist/current-job-txt-firefox-1.2.1.zip`. Build instructions are included in [BUILDING.md](BUILDING.md).
 
 ## Version notes
 
 Copy the following into the version notes field:
 
-> Version 1.2.0 adds Canadian Indeed job pages. Indeed application addresses always use the canonical job page; Apply now is labeled Indeed easily apply, and other nonempty primary application labels are marked Unrecognized External ATS. The application address and ATS fields are read-only for Indeed. Previously supported and newly adapted layouts use direct recognition. Unknown layouts can use conservative semantic fallback, with a warning to carefully verify the title, company, full description, and application URL. The warning remains after editing and is included in exported notes. Conflicting job identities and ambiguous candidates still block extraction. The Firefox minimum remains 142; desktop scope, permissions, and the no-data-collection declaration are unchanged.
+> Version 1.2.1 moves the Download TXT button and filename above the editable preview fields for faster access. Downloads now go into the JDs subfolder of the browser’s default downloads directory, created automatically when needed. Existing files are preserved using unique filenames. LinkedIn, Ashby, and Canadian Indeed support, permissions, and the no-data-collection declaration are unchanged.
 >
 > The add-on extracts one loaded LinkedIn, Ashby, or Indeed job after an explicit user action, provides an editable preview, and downloads a local UTF-8 TXT file. Source code and reproducible build instructions accompany this version.
 
@@ -20,7 +20,7 @@ Copy this section into the private Notes to Reviewer field, then provide working
 >
 > Test account access: the publisher must provide the dedicated LinkedIn test username, password, and any necessary login instructions privately in this reviewer field before final submission when account access is required. Credentials have not been supplied with these source files.
 >
-> To test: sign in to LinkedIn, open an available individual job at https://www.linkedin.com/jobs/view/ followed by its numeric job ID, wait for the title and description to load, and expand the description manually if needed. Open the toolbar action and click “提取当前职位” (Extract current job). Review or edit the company, title, application method, application URL, ATS, and description. Click “下载 TXT” (Download TXT). Confirm that new-jd-&lt;company-name&gt;.txt contains the previewed fields and description. The popup UI is Chinese; generated file labels and notes are English, and source content keeps its original language.
+> To test: sign in to LinkedIn, open an available individual job at https://www.linkedin.com/jobs/view/ followed by its numeric job ID, wait for the title and description to load, and expand the description manually if needed. Open the toolbar action and click “提取当前职位” (Extract current job). Review or edit the company, title, application method, application URL, ATS, and description. Click “下载 TXT” (Download TXT). Confirm that JDs/new-jd-&lt;company-name&gt;.txt contains the previewed fields and description. The popup UI is Chinese; generated file labels and notes are English, and source content keeps its original language.
 >
 > Ashby can be tested without a LinkedIn account: open https://jobs.ashbyhq.com/ followed by a company slug and job ID. Wait for the Overview description to load, then extract and download. The company field should match the URL slug, the application URL should equal the canonical job URL, and ATS should be Ashby. Easy Apply is unavailable for this source. The /application route and company board are not supported extraction entry points.
 >
@@ -28,7 +28,7 @@ Copy this section into the private Notes to Reviewer field, then provide working
 >
 > Opening the popup alone does not read the page. activeTab grants temporary access following the user's action; scripting reads the current tab's main-frame DOM only after Extract; downloads saves the locally generated file and reports completion. The add-on does not read cookies or credentials, click application controls, follow redirects, request job/ATS data, transmit extracted content, or load remote code. Preview data remains in memory; closing the popup clears it. The downloaded file remains on the user's device. data_collection_permissions.required is ["none"].
 >
-> The source uses TypeScript bundled locally with esbuild, without minification. Use Node.js 22.15 or later and pnpm 12.15.0, then run pnpm install --frozen-lockfile and pnpm check. The Firefox output is dist/firefox/ and dist/current-job-txt-firefox-1.2.0.zip. pnpm lint:firefox runs the pinned Mozilla validator. scripts/firefox-smoke.mjs and scripts/browser-smoke.mjs serve generated synthetic markup under the supported LinkedIn and Ashby URLs in isolated profiles using native extension APIs; they do not access a live LinkedIn account. The Chromium smoke test additionally covers Indeed external and easily apply downloads. Automated tests generate synthetic markup, including long LinkedIn descriptions with four lists and 32 items, and hosted Ashby descriptions with five lists and 32 items. No saved website page or real job description is included in the sources. Live signed-in operation and foreground toolbar-popup presentation still require manual verification.
+> The source uses TypeScript bundled locally with esbuild, without minification. Use Node.js 22.15 or later and pnpm 12.15.0, then run pnpm install --frozen-lockfile and pnpm check. The Firefox output is dist/firefox/ and dist/current-job-txt-firefox-1.2.1.zip. pnpm lint:firefox runs the pinned Mozilla validator. scripts/firefox-smoke.mjs and scripts/browser-smoke.mjs serve generated synthetic markup under the supported LinkedIn and Ashby URLs in isolated profiles using native extension APIs; they do not access a live LinkedIn account. The Chromium smoke test additionally covers Indeed external and easily apply downloads. Automated tests generate synthetic markup, including long LinkedIn descriptions with four lists and 32 items, and hosted Ashby descriptions with five lists and 32 items. No saved website page or real job description is included in the sources. Live signed-in operation and foreground toolbar-popup presentation still require manual verification.
 
 ## Compatibility and verification
 

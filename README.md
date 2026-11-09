@@ -4,7 +4,7 @@ A desktop Manifest V3 extension that extracts the **currently loaded** LinkedIn,
 
 The popup uses Chinese UI text. Generated TXT labels, statuses, and extraction notes are English. Company names, titles, descriptions, and user edits retain their source language.
 
-Current version: **1.2.0**. This version adds Canadian Indeed job pages, with the canonical job page always used as the application address. It retains LinkedIn expandable-card support and conservative semantic fallback for unknown layouts. Fallback extraction always shows a verification warning in the preview and exported notes; supported layouts do not receive that warning. The Firefox minimum remains 142. Replace or reload the old temporary extension before retrying.
+Current version: **1.2.1**. The download button and filename now appear above the editable fields, and TXT exports are saved in the `JDs/` subfolder of the browser’s default downloads directory. LinkedIn, Ashby, and Canadian Indeed support is retained. Replace or reload the old temporary extension before retrying.
 
 ## Load the delivered builds
 
@@ -12,8 +12,8 @@ No dependency installation is needed to load the delivered files.
 
 | Browser | Unpacked directory | ZIP package |
 | --- | --- | --- |
-| Chromium | `dist/chromium/` | `dist/current-job-txt-chromium-1.2.0.zip` |
-| Firefox | `dist/firefox/` | `dist/current-job-txt-firefox-1.2.0.zip` |
+| Chromium | `dist/chromium/` | `dist/current-job-txt-chromium-1.2.1.zip` |
+| Firefox | `dist/firefox/` | `dist/current-job-txt-firefox-1.2.1.zip` |
 
 **Chromium:** Open `chrome://extensions`, enable Developer mode, click **Load unpacked**, and choose `dist/chromium/`. If using the ZIP, extract it first and choose the directory containing `manifest.json`. Pin the extension for convenient access.
 
