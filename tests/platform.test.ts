@@ -74,7 +74,7 @@ test('background download uses local UTF-8 data and uniquify with current edited
   const downloads = { download: async (value: chrome.downloads.DownloadOptions) => { options = value; return 17; } };
   const draft = { ...job(), companyName: '新 公司/团队', description: '编辑后的描述。' };
   assert.deepEqual(await startDownload(draft, downloads as typeof chrome.downloads), { ok: true, id: 17 });
-  assert.equal(options?.filename, 'new-jd-新-公司-团队.txt');
+  assert.equal(options?.filename, 'JDs/new-jd-新-公司-团队.txt');
   assert.equal(options?.conflictAction, 'uniquify');
   assert.equal(options?.saveAs, false);
   assert.ok(options?.url.startsWith('data:text/plain;charset=utf-8;base64,'));
@@ -89,7 +89,7 @@ test('Ashby downloads export the URL company and the source URL as the applicati
   assert.deepEqual(await startDownload(ashbyJob(), {
     download: async (value: chrome.downloads.DownloadOptions) => { options = value; return 18; },
   } as typeof chrome.downloads), { ok: true, id: 18 });
-  assert.equal(options?.filename, 'new-jd-example.ai.txt');
+  assert.equal(options?.filename, 'JDs/new-jd-example.ai.txt');
   const text = Buffer.from(options!.url.split(',')[1]!, 'base64').toString('utf8');
   assert.ok(text.includes('Company Name: example.ai'));
   assert.ok(text.includes('Application URL: ' + ashbySourceUrl));

@@ -26,7 +26,7 @@ No dependency installation is needed to load the delivered files.
 1. Open `https://www.linkedin.com/jobs/view/<numeric-job-id>/`, `https://jobs.ashbyhq.com/<company>/<job-id>`, or `https://ca.indeed.com/viewjob?jk=<job-id>`. Tracking parameters are accepted; LinkedIn and Ashby also accept an optional trailing slash. Finish loading and manually expand the description if needed.
 2. Open the extension and click Extract. Opening the popup alone does not inspect the tab or page.
 3. Review the editable preview and any field or application-link warnings. Fill in company name, job title, and description before downloading. If the Apply control has no readable link, enter one manually or export with the English unavailable note.
-4. Click Download. The browser saves to its default downloads directory. Open the TXT from the browser's download manager or a text editor. Each action creates a single file; repeated names use the browser's uniquify behavior.
+4. Click Download. The browser saves to the `JDs/` subfolder in its default downloads directory (creating the subfolder if needed). Open the TXT from the browser's download manager or a text editor. Each action creates a single file; repeated names use the browser's uniquify behavior.
 
 Re-extraction asks before replacing edits that have not been downloaded. Closing the popup clears the preview and edits. Once a download request has reached the background, closing the popup does not own or destroy its download data.
 

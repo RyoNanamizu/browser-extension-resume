@@ -169,10 +169,10 @@ try {
   await call('/window', undefined, 'DELETE');
   await call('/window', { handle: jobTabHandle });
   const { readdir } = await import('node:fs/promises');
-  const names = await until(() => readdir(downloads), names => names.includes('new-jd-Popup-Close-Test.txt'), 'Download after popup closure did not finish');
+  const names = await until(() => readdir(join(downloads, 'JDs')).catch(() => []), names => names.includes('new-jd-Popup-Close-Test.txt'), 'Download after popup closure did not finish');
   assert.ok(names.includes('new-jd-Popup-Close-Test.txt'));
   const expectedClosedText = text.replace('Company Name: 星河科技 🚀', 'Company Name: Popup Close Test');
-  const closedText = await until(() => readFile(join(downloads, 'new-jd-Popup-Close-Test.txt'), 'utf8').catch(() => ''), text => text === expectedClosedText, 'Closed-popup download bytes were incomplete');
+  const closedText = await until(() => readFile(join(downloads, 'JDs', 'new-jd-Popup-Close-Test.txt'), 'utf8').catch(() => ''), text => text === expectedClosedText, 'Closed-popup download bytes were incomplete');
   assert.equal(closedText, expectedClosedText);
   checks.push('Download retained intact UTF-8 content after the popup document was closed.');
 

@@ -26,6 +26,10 @@
     </div>
     <p id="status" role="status" aria-live="polite">等待提取。打开弹窗不会读取网页。</p>
     <form id="editor" hidden>
+      <div class="download-panel">
+        <div><p class="eyebrow">UTF-8 · TXT</p><p id="filename" class="filename"></p></div>
+        <button id="download" type="submit" class="primary">下载 TXT</button>
+      </div>
       <fieldset id="fields">
         <div class="row">
           <label>公司名称 <span>*</span><input id="company" required autocomplete="off"></label>
@@ -45,10 +49,6 @@
       </fieldset>
       <ul id="warnings" class="warnings" aria-label="检查提示"></ul>
       <details class="source"><summary>来源与提取时间</summary><p id="source"></p><p id="extracted-at"></p></details>
-      <div class="download-panel">
-        <div><p class="eyebrow">UTF-8 · TXT</p><p id="filename" class="filename"></p></div>
-        <button id="download" type="submit" class="primary">下载 TXT</button>
-      </div>
     </form>
     <footer>仅处理当前职位 · 不自动点击或获取额外数据<br>关闭弹窗将清除预览和编辑，请先下载。</footer>
   </main>

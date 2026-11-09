@@ -34,7 +34,7 @@ export async function startDownload(job: JobDraft, downloads: Pick<typeof chrome
     const text = formatTxt(exported);
     resource = resources?.create(text) ?? { url: toTextDataUrl(text), release() {} };
     const id = await downloads.download({
-      url: resource.url, filename: createFilename(exported.companyName, exported.jobId),
+      url: resource.url, filename: `JDs/${createFilename(exported.companyName, exported.jobId)}`,
       conflictAction: 'uniquify', saveAs: false,
     });
     resources?.track(id, resource);
